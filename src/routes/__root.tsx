@@ -21,6 +21,7 @@ import { CookieConsent } from "@/components/krew/CookieConsent";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { OG_DEFAULT_IMAGE_URL } from "@/lib/site";
 
 function NotFoundComponent() {
   return (
@@ -79,7 +80,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "KREW — Organise simplement tes voyages de groupe" },
       { property: "og:description", content: "EVG, EVJF, week-end entre amis : KREW réunit les disponibilités et les préférences du groupe pour t’aider à organiser le voyage." },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: OG_DEFAULT_IMAGE_URL },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "KREW — organise simplement tes voyages de groupe" },
+      { property: "og:site_name", content: "KREW" },
+      { property: "og:locale", content: "fr_FR" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: OG_DEFAULT_IMAGE_URL },
+      { name: "twitter:title", content: "KREW — Organise simplement tes voyages de groupe" },
+      { name: "twitter:description", content: "EVG, EVJF, week-end entre amis : KREW réunit les disponibilités et les préférences du groupe pour t’aider à organiser le voyage." },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
