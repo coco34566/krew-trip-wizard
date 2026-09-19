@@ -137,6 +137,23 @@ test("join invitation visual states use a real invite token", async ({ page }, t
     timeout: 20_000,
   });
 
+  const persistedFirstName = "Léa QA";
+  const firstNameStorageKey = `krew:join-firstname:${tripId}`;
+  await page.locator("#join-firstname").fill(persistedFirstName);
+  await Promise.all([
+    page.waitForURL(/\/auth(?:\?|$)/, { timeout: 20_000 }),
+    userClick(
+      page,
+      page.getByRole("button", { name: "Se connecter pour rejoindre le voyage" }),
+      "redirect anonymous invitee to auth",
+    ),
+  ]);
+  await expect.poll(() => page.evaluate((key) => sessionStorage.getItem(key), firstNameStorageKey)).toBe(persistedFirstName);
+  await page.goBack();
+  await settleJoin(page);
+  await expect(page.locator("#join-firstname")).toHaveValue(persistedFirstName);
+  await page.evaluate((key) => sessionStorage.removeItem(key), firstNameStorageKey);
+
   const invalidToken = "00000000-0000-4000-8000-000000000000";
   const states = [
     {

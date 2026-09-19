@@ -17,27 +17,31 @@ import { Route as CguRouteImport } from './routes/cgu'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as FaqRouteImport } from './routes/faq'
-import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as StayapiTestRouteImport } from './routes/stayapi-test'
 import { Route as TarifsRouteImport } from './routes/tarifs'
-import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as ApiDestinationPhotoRouteImport } from './routes/api.destination-photo'
 import { Route as ApiRecalibrateRouteImport } from './routes/api.recalibrate'
 import { Route as JoinTripIdRouteImport } from './routes/join.$tripId'
-import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedTripsTripIdRouteImport } from './routes/_authenticated/trips.$tripId'
 import { Route as AuthenticatedTripsNewRouteImport } from './routes/_authenticated/trips.new'
 import { Route as AuthenticatedTripsTripIdIndexRouteImport } from './routes/_authenticated/trips.$tripId.index'
+import { Route as AuthenticatedTripsTripIdAccommodationRouteImport } from './routes/_authenticated/trips.$tripId.accommodation'
 import { Route as AuthenticatedTripsTripIdAvailabilityRouteImport } from './routes/_authenticated/trips.$tripId.availability'
+import { Route as AuthenticatedTripsTripIdDatesRouteImport } from './routes/_authenticated/trips.$tripId.dates'
+import { Route as AuthenticatedTripsTripIdDestinationRouteImport } from './routes/_authenticated/trips.$tripId.destination'
 import { Route as AuthenticatedTripsTripIdInviteRouteImport } from './routes/_authenticated/trips.$tripId.invite'
 import { Route as AuthenticatedTripsTripIdMemoriesRouteImport } from './routes/_authenticated/trips.$tripId.memories'
+import { Route as AuthenticatedTripsTripIdPackingRouteImport } from './routes/_authenticated/trips.$tripId.packing'
+import { Route as AuthenticatedTripsTripIdPlanningRouteImport } from './routes/_authenticated/trips.$tripId.planning'
+import { Route as AuthenticatedTripsTripIdProfileRouteImport } from './routes/_authenticated/trips.$tripId.profile'
 import { Route as AuthenticatedTripsTripIdQuestionnaireRouteImport } from './routes/_authenticated/trips.$tripId.questionnaire'
 import { Route as AuthenticatedTripsTripIdRecapRouteImport } from './routes/_authenticated/trips.$tripId.recap'
 import { Route as AuthenticatedTripsTripIdStarRouteImport } from './routes/_authenticated/trips.$tripId.star'
+import { Route as AuthenticatedTripsTripIdTasksRouteImport } from './routes/_authenticated/trips.$tripId.tasks'
+import { Route as AuthenticatedTripsTripIdTransportRouteImport } from './routes/_authenticated/trips.$tripId.transport'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -78,11 +82,6 @@ const FaqRoute = FaqRouteImport.update({
   path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
   id: '/mentions-legales',
   path: '/mentions-legales',
@@ -98,18 +97,6 @@ const TarifsRoute = TarifsRouteImport.update({
   path: '/tarifs',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
   id: '/account',
   path: '/account',
@@ -119,6 +106,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiDestinationPhotoRoute = ApiDestinationPhotoRouteImport.update({
+  id: '/api/destination-photo',
+  path: '/api/destination-photo',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiRecalibrateRoute = ApiRecalibrateRouteImport.update({
   id: '/api/recalibrate',
@@ -130,17 +122,6 @@ const JoinTripIdRoute = JoinTripIdRouteImport.update({
   path: '/join/$tripId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AuthenticatedTripsTripIdRoute =
   AuthenticatedTripsTripIdRouteImport.update({
     id: '/trips/$tripId',
@@ -158,10 +139,28 @@ const AuthenticatedTripsTripIdIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedTripsTripIdRoute,
   } as any)
+const AuthenticatedTripsTripIdAccommodationRoute =
+  AuthenticatedTripsTripIdAccommodationRouteImport.update({
+    id: '/accommodation',
+    path: '/accommodation',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
 const AuthenticatedTripsTripIdAvailabilityRoute =
   AuthenticatedTripsTripIdAvailabilityRouteImport.update({
     id: '/availability',
     path: '/availability',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
+const AuthenticatedTripsTripIdDatesRoute =
+  AuthenticatedTripsTripIdDatesRouteImport.update({
+    id: '/dates',
+    path: '/dates',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
+const AuthenticatedTripsTripIdDestinationRoute =
+  AuthenticatedTripsTripIdDestinationRouteImport.update({
+    id: '/destination',
+    path: '/destination',
     getParentRoute: () => AuthenticatedTripsTripIdRoute,
   } as any)
 const AuthenticatedTripsTripIdInviteRoute =
@@ -174,6 +173,24 @@ const AuthenticatedTripsTripIdMemoriesRoute =
   AuthenticatedTripsTripIdMemoriesRouteImport.update({
     id: '/memories',
     path: '/memories',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
+const AuthenticatedTripsTripIdPackingRoute =
+  AuthenticatedTripsTripIdPackingRouteImport.update({
+    id: '/packing',
+    path: '/packing',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
+const AuthenticatedTripsTripIdPlanningRoute =
+  AuthenticatedTripsTripIdPlanningRouteImport.update({
+    id: '/planning',
+    path: '/planning',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
+const AuthenticatedTripsTripIdProfileRoute =
+  AuthenticatedTripsTripIdProfileRouteImport.update({
+    id: '/profile',
+    path: '/profile',
     getParentRoute: () => AuthenticatedTripsTripIdRoute,
   } as any)
 const AuthenticatedTripsTripIdQuestionnaireRoute =
@@ -194,6 +211,18 @@ const AuthenticatedTripsTripIdStarRoute =
     path: '/star',
     getParentRoute: () => AuthenticatedTripsTripIdRoute,
   } as any)
+const AuthenticatedTripsTripIdTasksRoute =
+  AuthenticatedTripsTripIdTasksRouteImport.update({
+    id: '/tasks',
+    path: '/tasks',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
+const AuthenticatedTripsTripIdTransportRoute =
+  AuthenticatedTripsTripIdTransportRouteImport.update({
+    id: '/transport',
+    path: '/transport',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -203,26 +232,30 @@ export interface FileRoutesByFullPath {
   '/confidentialite': typeof ConfidentialiteRoute
   '/design-system': typeof DesignSystemRoute
   '/faq': typeof FaqRoute
-  '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/stayapi-test': typeof StayapiTestRoute
   '/tarifs': typeof TarifsRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/account': typeof AuthenticatedAccountRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/destination-photo': typeof ApiDestinationPhotoRoute
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/join/$tripId': typeof JoinTripIdRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/trips/new': typeof AuthenticatedTripsNewRoute
+  '/trips/$tripId/accommodation': typeof AuthenticatedTripsTripIdAccommodationRoute
   '/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
+  '/trips/$tripId/dates': typeof AuthenticatedTripsTripIdDatesRoute
+  '/trips/$tripId/destination': typeof AuthenticatedTripsTripIdDestinationRoute
   '/trips/$tripId/invite': typeof AuthenticatedTripsTripIdInviteRoute
   '/trips/$tripId/memories': typeof AuthenticatedTripsTripIdMemoriesRoute
+  '/trips/$tripId/packing': typeof AuthenticatedTripsTripIdPackingRoute
+  '/trips/$tripId/planning': typeof AuthenticatedTripsTripIdPlanningRoute
+  '/trips/$tripId/profile': typeof AuthenticatedTripsTripIdProfileRoute
   '/trips/$tripId/questionnaire': typeof AuthenticatedTripsTripIdQuestionnaireRoute
   '/trips/$tripId/recap': typeof AuthenticatedTripsTripIdRecapRoute
   '/trips/$tripId/star': typeof AuthenticatedTripsTripIdStarRoute
+  '/trips/$tripId/tasks': typeof AuthenticatedTripsTripIdTasksRoute
+  '/trips/$tripId/transport': typeof AuthenticatedTripsTripIdTransportRoute
   '/trips/$tripId/': typeof AuthenticatedTripsTripIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -233,25 +266,29 @@ export interface FileRoutesByTo {
   '/confidentialite': typeof ConfidentialiteRoute
   '/design-system': typeof DesignSystemRoute
   '/faq': typeof FaqRoute
-  '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/stayapi-test': typeof StayapiTestRoute
   '/tarifs': typeof TarifsRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/account': typeof AuthenticatedAccountRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/destination-photo': typeof ApiDestinationPhotoRoute
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/join/$tripId': typeof JoinTripIdRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/trips/new': typeof AuthenticatedTripsNewRoute
+  '/trips/$tripId/accommodation': typeof AuthenticatedTripsTripIdAccommodationRoute
   '/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
+  '/trips/$tripId/dates': typeof AuthenticatedTripsTripIdDatesRoute
+  '/trips/$tripId/destination': typeof AuthenticatedTripsTripIdDestinationRoute
   '/trips/$tripId/invite': typeof AuthenticatedTripsTripIdInviteRoute
   '/trips/$tripId/memories': typeof AuthenticatedTripsTripIdMemoriesRoute
+  '/trips/$tripId/packing': typeof AuthenticatedTripsTripIdPackingRoute
+  '/trips/$tripId/planning': typeof AuthenticatedTripsTripIdPlanningRoute
+  '/trips/$tripId/profile': typeof AuthenticatedTripsTripIdProfileRoute
   '/trips/$tripId/questionnaire': typeof AuthenticatedTripsTripIdQuestionnaireRoute
   '/trips/$tripId/recap': typeof AuthenticatedTripsTripIdRecapRoute
   '/trips/$tripId/star': typeof AuthenticatedTripsTripIdStarRoute
+  '/trips/$tripId/tasks': typeof AuthenticatedTripsTripIdTasksRoute
+  '/trips/$tripId/transport': typeof AuthenticatedTripsTripIdTransportRoute
   '/trips/$tripId': typeof AuthenticatedTripsTripIdIndexRoute
 }
 export interface FileRoutesById {
@@ -264,26 +301,30 @@ export interface FileRoutesById {
   '/confidentialite': typeof ConfidentialiteRoute
   '/design-system': typeof DesignSystemRoute
   '/faq': typeof FaqRoute
-  '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/stayapi-test': typeof StayapiTestRoute
   '/tarifs': typeof TarifsRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/destination-photo': typeof ApiDestinationPhotoRoute
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/join/$tripId': typeof JoinTripIdRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/_authenticated/trips/new': typeof AuthenticatedTripsNewRoute
+  '/_authenticated/trips/$tripId/accommodation': typeof AuthenticatedTripsTripIdAccommodationRoute
   '/_authenticated/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
+  '/_authenticated/trips/$tripId/dates': typeof AuthenticatedTripsTripIdDatesRoute
+  '/_authenticated/trips/$tripId/destination': typeof AuthenticatedTripsTripIdDestinationRoute
   '/_authenticated/trips/$tripId/invite': typeof AuthenticatedTripsTripIdInviteRoute
   '/_authenticated/trips/$tripId/memories': typeof AuthenticatedTripsTripIdMemoriesRoute
+  '/_authenticated/trips/$tripId/packing': typeof AuthenticatedTripsTripIdPackingRoute
+  '/_authenticated/trips/$tripId/planning': typeof AuthenticatedTripsTripIdPlanningRoute
+  '/_authenticated/trips/$tripId/profile': typeof AuthenticatedTripsTripIdProfileRoute
   '/_authenticated/trips/$tripId/questionnaire': typeof AuthenticatedTripsTripIdQuestionnaireRoute
   '/_authenticated/trips/$tripId/recap': typeof AuthenticatedTripsTripIdRecapRoute
   '/_authenticated/trips/$tripId/star': typeof AuthenticatedTripsTripIdStarRoute
+  '/_authenticated/trips/$tripId/tasks': typeof AuthenticatedTripsTripIdTasksRoute
+  '/_authenticated/trips/$tripId/transport': typeof AuthenticatedTripsTripIdTransportRoute
   '/_authenticated/trips/$tripId/': typeof AuthenticatedTripsTripIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -296,26 +337,30 @@ export interface FileRouteTypes {
     | '/confidentialite'
     | '/design-system'
     | '/faq'
-    | '/mcp'
     | '/mentions-legales'
     | '/stayapi-test'
     | '/tarifs'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/account'
     | '/dashboard'
+    | '/api/destination-photo'
     | '/api/recalibrate'
     | '/join/$tripId'
-    | '/.lovable/oauth/consent'
-    | '/.mcp/invoke-tool/$tool'
     | '/trips/$tripId'
     | '/trips/new'
+    | '/trips/$tripId/accommodation'
     | '/trips/$tripId/availability'
+    | '/trips/$tripId/dates'
+    | '/trips/$tripId/destination'
     | '/trips/$tripId/invite'
     | '/trips/$tripId/memories'
+    | '/trips/$tripId/packing'
+    | '/trips/$tripId/planning'
+    | '/trips/$tripId/profile'
     | '/trips/$tripId/questionnaire'
     | '/trips/$tripId/recap'
     | '/trips/$tripId/star'
+    | '/trips/$tripId/tasks'
+    | '/trips/$tripId/transport'
     | '/trips/$tripId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -326,25 +371,29 @@ export interface FileRouteTypes {
     | '/confidentialite'
     | '/design-system'
     | '/faq'
-    | '/mcp'
     | '/mentions-legales'
     | '/stayapi-test'
     | '/tarifs'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/account'
     | '/dashboard'
+    | '/api/destination-photo'
     | '/api/recalibrate'
     | '/join/$tripId'
-    | '/.lovable/oauth/consent'
-    | '/.mcp/invoke-tool/$tool'
     | '/trips/new'
+    | '/trips/$tripId/accommodation'
     | '/trips/$tripId/availability'
+    | '/trips/$tripId/dates'
+    | '/trips/$tripId/destination'
     | '/trips/$tripId/invite'
     | '/trips/$tripId/memories'
+    | '/trips/$tripId/packing'
+    | '/trips/$tripId/planning'
+    | '/trips/$tripId/profile'
     | '/trips/$tripId/questionnaire'
     | '/trips/$tripId/recap'
     | '/trips/$tripId/star'
+    | '/trips/$tripId/tasks'
+    | '/trips/$tripId/transport'
     | '/trips/$tripId'
   id:
     | '__root__'
@@ -356,26 +405,30 @@ export interface FileRouteTypes {
     | '/confidentialite'
     | '/design-system'
     | '/faq'
-    | '/mcp'
     | '/mentions-legales'
     | '/stayapi-test'
     | '/tarifs'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/account'
     | '/_authenticated/dashboard'
+    | '/api/destination-photo'
     | '/api/recalibrate'
     | '/join/$tripId'
-    | '/.lovable/oauth/consent'
-    | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/trips/$tripId'
     | '/_authenticated/trips/new'
+    | '/_authenticated/trips/$tripId/accommodation'
     | '/_authenticated/trips/$tripId/availability'
+    | '/_authenticated/trips/$tripId/dates'
+    | '/_authenticated/trips/$tripId/destination'
     | '/_authenticated/trips/$tripId/invite'
     | '/_authenticated/trips/$tripId/memories'
+    | '/_authenticated/trips/$tripId/packing'
+    | '/_authenticated/trips/$tripId/planning'
+    | '/_authenticated/trips/$tripId/profile'
     | '/_authenticated/trips/$tripId/questionnaire'
     | '/_authenticated/trips/$tripId/recap'
     | '/_authenticated/trips/$tripId/star'
+    | '/_authenticated/trips/$tripId/tasks'
+    | '/_authenticated/trips/$tripId/transport'
     | '/_authenticated/trips/$tripId/'
   fileRoutesById: FileRoutesById
 }
@@ -388,16 +441,12 @@ export interface RootRouteChildren {
   ConfidentialiteRoute: typeof ConfidentialiteRoute
   DesignSystemRoute: typeof DesignSystemRoute
   FaqRoute: typeof FaqRoute
-  McpRoute: typeof McpRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
   StayapiTestRoute: typeof StayapiTestRoute
   TarifsRoute: typeof TarifsRoute
-  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
-  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiDestinationPhotoRoute: typeof ApiDestinationPhotoRoute
   ApiRecalibrateRoute: typeof ApiRecalibrateRoute
   JoinTripIdRoute: typeof JoinTripIdRoute
-  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
-  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -458,13 +507,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/mentions-legales': {
       id: '/mentions-legales'
       path: '/mentions-legales'
@@ -486,20 +528,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TarifsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.mcp/list-tools': {
-      id: '/.mcp/list-tools'
-      path: '/.mcp/list-tools'
-      fullPath: '/.mcp/list-tools'
-      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/account': {
       id: '/_authenticated/account'
       path: '/account'
@@ -514,6 +542,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/destination-photo': {
+      id: '/api/destination-photo'
+      path: '/api/destination-photo'
+      fullPath: '/api/destination-photo'
+      preLoaderRoute: typeof ApiDestinationPhotoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/recalibrate': {
       id: '/api/recalibrate'
       path: '/api/recalibrate'
@@ -526,20 +561,6 @@ declare module '@tanstack/react-router' {
       path: '/join/$tripId'
       fullPath: '/join/$tripId'
       preLoaderRoute: typeof JoinTripIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.lovable/oauth/consent': {
-      id: '/.lovable/oauth/consent'
-      path: '/.lovable/oauth/consent'
-      fullPath: '/.lovable/oauth/consent'
-      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/trips/$tripId': {
@@ -563,11 +584,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTripsTripIdIndexRouteImport
       parentRoute: typeof AuthenticatedTripsTripIdRoute
     }
+    '/_authenticated/trips/$tripId/accommodation': {
+      id: '/_authenticated/trips/$tripId/accommodation'
+      path: '/accommodation'
+      fullPath: '/trips/$tripId/accommodation'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdAccommodationRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
     '/_authenticated/trips/$tripId/availability': {
       id: '/_authenticated/trips/$tripId/availability'
       path: '/availability'
       fullPath: '/trips/$tripId/availability'
       preLoaderRoute: typeof AuthenticatedTripsTripIdAvailabilityRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/_authenticated/trips/$tripId/dates': {
+      id: '/_authenticated/trips/$tripId/dates'
+      path: '/dates'
+      fullPath: '/trips/$tripId/dates'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdDatesRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/_authenticated/trips/$tripId/destination': {
+      id: '/_authenticated/trips/$tripId/destination'
+      path: '/destination'
+      fullPath: '/trips/$tripId/destination'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdDestinationRouteImport
       parentRoute: typeof AuthenticatedTripsTripIdRoute
     }
     '/_authenticated/trips/$tripId/invite': {
@@ -582,6 +624,27 @@ declare module '@tanstack/react-router' {
       path: '/memories'
       fullPath: '/trips/$tripId/memories'
       preLoaderRoute: typeof AuthenticatedTripsTripIdMemoriesRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/_authenticated/trips/$tripId/packing': {
+      id: '/_authenticated/trips/$tripId/packing'
+      path: '/packing'
+      fullPath: '/trips/$tripId/packing'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdPackingRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/_authenticated/trips/$tripId/planning': {
+      id: '/_authenticated/trips/$tripId/planning'
+      path: '/planning'
+      fullPath: '/trips/$tripId/planning'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdPlanningRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/_authenticated/trips/$tripId/profile': {
+      id: '/_authenticated/trips/$tripId/profile'
+      path: '/profile'
+      fullPath: '/trips/$tripId/profile'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdProfileRouteImport
       parentRoute: typeof AuthenticatedTripsTripIdRoute
     }
     '/_authenticated/trips/$tripId/questionnaire': {
@@ -605,30 +668,64 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTripsTripIdStarRouteImport
       parentRoute: typeof AuthenticatedTripsTripIdRoute
     }
+    '/_authenticated/trips/$tripId/tasks': {
+      id: '/_authenticated/trips/$tripId/tasks'
+      path: '/tasks'
+      fullPath: '/trips/$tripId/tasks'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdTasksRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/_authenticated/trips/$tripId/transport': {
+      id: '/_authenticated/trips/$tripId/transport'
+      path: '/transport'
+      fullPath: '/trips/$tripId/transport'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdTransportRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
   }
 }
 
 interface AuthenticatedTripsTripIdRouteChildren {
+  AuthenticatedTripsTripIdAccommodationRoute: typeof AuthenticatedTripsTripIdAccommodationRoute
   AuthenticatedTripsTripIdAvailabilityRoute: typeof AuthenticatedTripsTripIdAvailabilityRoute
+  AuthenticatedTripsTripIdDatesRoute: typeof AuthenticatedTripsTripIdDatesRoute
+  AuthenticatedTripsTripIdDestinationRoute: typeof AuthenticatedTripsTripIdDestinationRoute
   AuthenticatedTripsTripIdInviteRoute: typeof AuthenticatedTripsTripIdInviteRoute
   AuthenticatedTripsTripIdMemoriesRoute: typeof AuthenticatedTripsTripIdMemoriesRoute
+  AuthenticatedTripsTripIdPackingRoute: typeof AuthenticatedTripsTripIdPackingRoute
+  AuthenticatedTripsTripIdPlanningRoute: typeof AuthenticatedTripsTripIdPlanningRoute
+  AuthenticatedTripsTripIdProfileRoute: typeof AuthenticatedTripsTripIdProfileRoute
   AuthenticatedTripsTripIdQuestionnaireRoute: typeof AuthenticatedTripsTripIdQuestionnaireRoute
   AuthenticatedTripsTripIdRecapRoute: typeof AuthenticatedTripsTripIdRecapRoute
   AuthenticatedTripsTripIdStarRoute: typeof AuthenticatedTripsTripIdStarRoute
+  AuthenticatedTripsTripIdTasksRoute: typeof AuthenticatedTripsTripIdTasksRoute
+  AuthenticatedTripsTripIdTransportRoute: typeof AuthenticatedTripsTripIdTransportRoute
   AuthenticatedTripsTripIdIndexRoute: typeof AuthenticatedTripsTripIdIndexRoute
 }
 
 const AuthenticatedTripsTripIdRouteChildren: AuthenticatedTripsTripIdRouteChildren =
   {
+    AuthenticatedTripsTripIdAccommodationRoute:
+      AuthenticatedTripsTripIdAccommodationRoute,
     AuthenticatedTripsTripIdAvailabilityRoute:
       AuthenticatedTripsTripIdAvailabilityRoute,
+    AuthenticatedTripsTripIdDatesRoute: AuthenticatedTripsTripIdDatesRoute,
+    AuthenticatedTripsTripIdDestinationRoute:
+      AuthenticatedTripsTripIdDestinationRoute,
     AuthenticatedTripsTripIdInviteRoute: AuthenticatedTripsTripIdInviteRoute,
     AuthenticatedTripsTripIdMemoriesRoute:
       AuthenticatedTripsTripIdMemoriesRoute,
+    AuthenticatedTripsTripIdPackingRoute: AuthenticatedTripsTripIdPackingRoute,
+    AuthenticatedTripsTripIdPlanningRoute:
+      AuthenticatedTripsTripIdPlanningRoute,
+    AuthenticatedTripsTripIdProfileRoute: AuthenticatedTripsTripIdProfileRoute,
     AuthenticatedTripsTripIdQuestionnaireRoute:
       AuthenticatedTripsTripIdQuestionnaireRoute,
     AuthenticatedTripsTripIdRecapRoute: AuthenticatedTripsTripIdRecapRoute,
     AuthenticatedTripsTripIdStarRoute: AuthenticatedTripsTripIdStarRoute,
+    AuthenticatedTripsTripIdTasksRoute: AuthenticatedTripsTripIdTasksRoute,
+    AuthenticatedTripsTripIdTransportRoute:
+      AuthenticatedTripsTripIdTransportRoute,
     AuthenticatedTripsTripIdIndexRoute: AuthenticatedTripsTripIdIndexRoute,
   }
 
@@ -663,17 +760,12 @@ const rootRouteChildren: RootRouteChildren = {
   ConfidentialiteRoute: ConfidentialiteRoute,
   DesignSystemRoute: DesignSystemRoute,
   FaqRoute: FaqRoute,
-  McpRoute: McpRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
   StayapiTestRoute: StayapiTestRoute,
   TarifsRoute: TarifsRoute,
-  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
-  Char91DotwellKnownChar93OauthProtectedResourceRoute:
-    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiDestinationPhotoRoute: ApiDestinationPhotoRoute,
   ApiRecalibrateRoute: ApiRecalibrateRoute,
   JoinTripIdRoute: JoinTripIdRoute,
-  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
-  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
