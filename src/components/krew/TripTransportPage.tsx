@@ -2,7 +2,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Clock, Plane } from "lucide-react";
+import { ArrowLeft, Car, Clock, Plane, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,13 @@ import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { KrewMark, KrewNote } from "@/components/krew/visual-language";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
+import { getStarTransportContext, setTransportPickStatusAtomic } from "@/lib/trips-logistics-atomic.functions";
+import { groupTransportPicks, isCarMode, transportShareKey } from "@/lib/krew/transport-groups";
 import {
   getGroupTransportTimeWindow,
   getTripDetail,
   pickTransport,
   proposeStayAndTransport,
-  setBookingStatus,
 } from "@/lib/trips.functions";
 import { formatEuro } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
@@ -30,15 +31,56 @@ function normalizeCity(value: unknown) {
     .toLocaleLowerCase("fr-FR");
 }
 
+function buildTransportPayload(transport: any, extra: Record<string, unknown> = {}) {
+  return {
+    city: transport.city,
+    mode: transport.mode,
+    modeLabel: transport.modeLabel,
+    label: transport.label,
+    pricePerPerson: transport.pricePerPerson,
+    url: transport.url,
+    arrivalTime:
+      transport.providerOffer?.outboundArrivalTime ||
+      transport.trainJourney?.outbound?.arrivalTime ||
+      transport.arrivalTime ||
+      undefined,
+    departureTime:
+      transport.providerOffer?.returnDepartureTime ||
+      transport.trainJourney?.return?.departureTime ||
+      transport.departureTime ||
+      undefined,
+    durationHours: transport.durationHours,
+    outboundDepartureTime:
+      transport.providerOffer?.outboundTime ||
+      transport.trainJourney?.outbound?.departureTime ||
+      transport.outboundDepartureTime ||
+      undefined,
+    returnArrivalTime:
+      transport.providerOffer?.returnArrivalTime ||
+      transport.providerOffer?.returnTime ||
+      transport.trainJourney?.return?.arrivalTime ||
+      transport.returnArrivalTime ||
+      undefined,
+    time:
+      transport.providerOffer?.outboundArrivalTime ||
+      transport.trainJourney?.outbound?.arrivalTime ||
+      transport.arrivalTime ||
+      transport.time ||
+      undefined,
+    ...extra,
+  };
+}
+
 export function TripTransportPage({ tripId }: { tripId: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
   const fetchProgress = useServerFn(getParticipantsProgress);
   const fetchGroupWindow = useServerFn(getGroupTransportTimeWindow);
+  const fetchStarContext = useServerFn(getStarTransportContext);
   const proposeTransport = useServerFn(proposeStayAndTransport);
   const chooseTransport = useServerFn(pickTransport);
-  const setBooking = useServerFn(setBookingStatus);
+  const setTransportStatus = useServerFn(setTransportPickStatusAtomic);
 
   const detailQuery = useQuery({
     queryKey: ["trip", tripId],
@@ -51,6 +93,12 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   const groupWindowQuery = useQuery({
     queryKey: ["group-time-window", tripId],
     queryFn: () => fetchGroupWindow({ data: { tripId } }),
+    retry: false,
+  });
+
+  const starContextQuery = useQuery({
+    queryKey: ["star-transport-context", tripId],
+    queryFn: () => fetchStarContext({ data: { tripId } }),
     retry: false,
   });
 
@@ -90,8 +138,8 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   });
 
   const bookingMutation = useMutation({
-    mutationFn: (userId: string) =>
-      setBooking({ data: { tripId, type: "transport", status: "réservé", userId } }),
+    mutationFn: (participantId: string) =>
+      setTransportStatus({ data: { tripId, participantId, status: "réservé" } }),
     onSuccess: () => {
       refresh();
     },
@@ -139,6 +187,8 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   ).trim();
   const cities = [...new Set(transports.map((transport) => String(transport.city || "").trim()).filter(Boolean))];
   const groupWindow = groupWindowQuery.data as any;
+  const transportGroups = groupTransportPicks(picks);
+  const starContext = starContextQuery.data as any;
 
   return (
     <KrewPageShell size="standard" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">
@@ -228,6 +278,23 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
               myDepartureCity && normalizeCity(myDepartureCity) === normalizeCity(city),
             );
 
+            const cityGroups = transportGroups.filter(
+              (group) => normalizeCity(group.city) === normalizeCity(city),
+            );
+            const joinableCars = cityGroups.filter(
+              (group) =>
+                group.driver &&
+                typeof group.seatsLeft === "number" &&
+                group.seatsLeft > 0 &&
+                !group.members.some((member: any) => member.userId === userId),
+            );
+            const canChooseForStar = Boolean(
+              isAdmin &&
+                starContext?.canManage &&
+                starContext?.departureCity &&
+                normalizeCity(starContext.departureCity) === normalizeCity(city),
+            );
+
             return (
               <section key={city} className="rounded-3xl border border-border bg-card p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -246,7 +313,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                     {cityPicks.map((pick: any) => {
                       const reserved = pick.status === "réservé";
                       return (
-                        <li key={pick.userId} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                        <li key={pick.participantId || pick.userId} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <span className="font-medium text-foreground">{pick.displayName}</span>
                             {" · "}{pick.modeLabel || pick.mode}
@@ -254,7 +321,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                             {pick.departureTime ? ` · retour ${pick.departureTime}` : ""}
                             <span className="ml-1 italic text-[10px] font-semibold">({pick.status || "estimé"})</span>
                           </div>
-                          {isAdmin && !reserved ? (
+                          {(isAdmin || pick.userId === userId) && !reserved && pick.participantId ? (
                             <KrewStatefulButton
                               size="sm"
                               variant="ghost"
@@ -263,7 +330,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                               loadingLabel="Enregistrement…"
                               successLabel="Réservé"
                               errorLabel="Réessayer"
-                              onAction={() => bookingMutation.mutateAsync(pick.userId)}
+                              onAction={() => bookingMutation.mutateAsync(pick.participantId)}
                             />
                           ) : null}
                         </li>
@@ -274,6 +341,42 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                   <p className="mt-2 text-xs text-muted-foreground">Personne au départ de {city} n’a encore choisi son trajet.</p>
                 )}
 
+                {canChooseForCity && joinableCars.length > 0 ? (
+                  <div className="mt-3 space-y-2 rounded-2xl border border-sage/30 bg-sage/8 p-3">
+                    <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                      <Car className="size-4 text-primary" /> Places disponibles
+                    </p>
+                    {joinableCars.map((group) => {
+                      const driver = group.driver as any;
+                      return (
+                        <div key={group.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <span className="text-muted-foreground">
+                            Voiture de <strong className="text-foreground">{driver.displayName}</strong>
+                            {group.seatsLeft != null ? ` · ${group.seatsLeft} place${group.seatsLeft > 1 ? "s" : ""} libre${group.seatsLeft > 1 ? "s" : ""}` : ""}
+                          </span>
+                          <KrewStatefulButton
+                            size="sm"
+                            variant="outline"
+                            idleLabel="Rejoindre"
+                            loadingLabel="Enregistrement…"
+                            successLabel="Place confirmée"
+                            errorLabel="Réessayer"
+                            onAction={() =>
+                              pickMutation.mutateAsync(
+                                buildTransportPayload(driver, {
+                                  sharedGroupId: group.id,
+                                  driverParticipantId: driver.participantId,
+                                  driverDisplayName: driver.displayName,
+                                }),
+                              )
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
                 <ul className="mt-3 space-y-2">
                   {options.map((transport: any, index: number) => {
                     const isMine = Boolean(
@@ -281,6 +384,13 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                         normalizeCity(myPick.city) === normalizeCity(transport.city) &&
                         myPick.mode === transport.mode &&
                         myPick.label === transport.label,
+                    );
+                    const shareKey = transportShareKey(buildTransportPayload(transport) as any);
+                    const sameTripMembers = cityPicks.filter(
+                      (pick: any) => transportShareKey(pick) === shareKey,
+                    );
+                    const starIsOnThisTrip = sameTripMembers.some(
+                      (pick: any) => pick.participantId === `star:${tripId}`,
                     );
                     return (
                       <li
@@ -296,49 +406,68 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                             ~{formatEuro(transport.pricePerPerson)} / pers. A/R
                             {transport.durationHours ? ` · ~${transport.durationHours} h` : ""}
                           </p>
+                          {sameTripMembers.length > 0 ? (
+                            <p className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-primary">
+                              <Users className="size-3.5" />
+                              {sameTripMembers.length} personne{sameTripMembers.length > 1 ? "s" : ""} sur ce trajet
+                            </p>
+                          ) : null}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                           {canChooseForCity ? (
                             <KrewStatefulButton
                               size="sm"
                               variant={isMine ? "default" : "outline"}
-                              idleLabel={isMine ? "Mon trajet" : "Choisir ce trajet"}
+                              idleLabel={
+                                isMine
+                                  ? "Mon trajet"
+                                  : sameTripMembers.length > 0
+                                    ? "Rejoindre ce trajet"
+                                    : "Choisir ce trajet"
+                              }
                               loadingLabel="Enregistrement…"
                               successLabel="Trajet choisi"
                               errorLabel="Réessayer"
+                              onAction={() => pickMutation.mutateAsync(buildTransportPayload(transport))}
+                            />
+                          ) : null}
+                          {canChooseForStar && !starIsOnThisTrip ? (
+                            <KrewStatefulButton
+                              size="sm"
+                              variant="ghost"
+                              idleLabel={isMine ? `Ajouter ${starContext.name} avec moi` : `Choisir pour ${starContext.name}`}
+                              loadingLabel="Enregistrement…"
+                              successLabel="Trajet attribué"
+                              errorLabel="Réessayer"
                               onAction={() =>
-                                pickMutation.mutateAsync({
-                                  city: transport.city,
-                                  mode: transport.mode,
-                                  modeLabel: transport.modeLabel,
-                                  label: transport.label,
-                                  pricePerPerson: transport.pricePerPerson,
-                                  url: transport.url,
-                                  arrivalTime:
-                                    transport.providerOffer?.outboundArrivalTime ||
-                                    transport.trainJourney?.outbound?.arrivalTime ||
-                                    undefined,
-                                  departureTime:
-                                    transport.providerOffer?.returnDepartureTime ||
-                                    transport.trainJourney?.return?.departureTime ||
-                                    undefined,
-                                  durationHours: transport.durationHours,
-                                  outboundDepartureTime:
-                                    transport.providerOffer?.outboundTime ||
-                                    transport.trainJourney?.outbound?.departureTime ||
-                                    undefined,
-                                  returnArrivalTime:
-                                    transport.providerOffer?.returnArrivalTime ||
-                                    transport.providerOffer?.returnTime ||
-                                    transport.trainJourney?.return?.arrivalTime ||
-                                    undefined,
-                                  time:
-                                    transport.providerOffer?.outboundArrivalTime ||
-                                    transport.trainJourney?.outbound?.arrivalTime ||
-                                    undefined,
-                                })
+                                pickMutation.mutateAsync(
+                                  buildTransportPayload(transport, { target: "star" }),
+                                )
                               }
                             />
+                          ) : null}
+                          {canChooseForCity && isMine && isCarMode(transport.mode) ? (
+                            <div className="flex flex-wrap items-center gap-1">
+                              {[1, 2, 3, 4].map((seats) => (
+                                <KrewStatefulButton
+                                  key={seats}
+                                  size="sm"
+                                  variant="ghost"
+                                  idleLabel={`Je conduis · +${seats}`}
+                                  loadingLabel="…"
+                                  successLabel={`+${seats} places`}
+                                  errorLabel="Réessayer"
+                                  onAction={() =>
+                                    pickMutation.mutateAsync(
+                                      buildTransportPayload(transport, {
+                                        isDriver: true,
+                                        passengerCapacity: seats,
+                                      }),
+                                    )
+                                  }
+                                />
+                              ))}
+                            </div>
                           ) : null}
                           {(transport.links ?? []).slice(0, 1).map((link: any) => (
                             <a

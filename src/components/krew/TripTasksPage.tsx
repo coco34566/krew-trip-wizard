@@ -14,6 +14,7 @@ import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewMark } from "@/components/krew/visual-language";
 import { supabase } from "@/integrations/supabase/client";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
+import { transportTaskLabel } from "@/lib/krew/transport-groups";
 import {
   reassignTaskSecure,
   sanitizeTaskAssignments,
@@ -180,6 +181,43 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
       participant.status !== "refuse",
   );
   const tasks = tasksQuery.data ?? [];
+  const transportPicks = (((trip as any).group_logistics || {}).transportPicks ?? []) as any[];
+  const transportTasks = participants.map((participant) => {
+    const pick = transportPicks.find(
+      (item: any) =>
+        item?.participantId === participant.id ||
+        (participant.user_id && item?.userId === participant.user_id),
+    );
+    return {
+      participant,
+      pick,
+      title: transportTaskLabel(pick),
+      done: pick?.status === "réservé",
+      managedByOrganizer: false,
+    };
+  });
+  const logistics = ((trip as any).group_logistics || {}) as any;
+  const secretStarPick = transportPicks.find(
+    (item: any) => item?.participantId === `star:${tripId}`,
+  );
+  if (logistics.star_mode === "secret" && trip.celebrated_person) {
+    transportTasks.push({
+      participant: {
+        id: `star:${tripId}`,
+        display_name: trip.celebrated_person,
+        email: null,
+        user_id: null,
+      } as any,
+      pick: secretStarPick,
+      title: secretStarPick?.status === "réservé"
+        ? null
+        : secretStarPick
+          ? `Réserver le transport de ${trip.celebrated_person}`
+          : `Organiser le transport de ${trip.celebrated_person}`,
+      done: secretStarPick?.status === "réservé",
+      managedByOrganizer: true,
+    });
+  }
   const rawItinerary = trip.group_itinerary;
   const itinerary =
     rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
@@ -318,6 +356,52 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
             </Link>
           </Button>
         </div>
+      ) : null}
+
+      {transportTasks.length > 0 ? (
+        <section className="space-y-3 rounded-3xl border border-border/70 bg-card p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="font-display text-xl font-normal text-foreground">Transports à réserver</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Une action par personne, mise à jour automatiquement avec le trajet choisi.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link
+                to="/trips/$tripId"
+                params={{ tripId }}
+                search={{ view: "voyage", section: "transport" }}
+              >
+                Voir les transports
+              </Link>
+            </Button>
+          </div>
+          <div className="divide-y divide-border/40">
+            {transportTasks.map(({ participant, pick, title, done }) => {
+              const name =
+                participant.display_name ||
+                participant.email?.split("@")[0] ||
+                "Participant";
+              return (
+                <div key={participant.id} className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{name}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {done ? "Transport réservé" : title || "Transport réservé"}
+                      {pick?.driverDisplayName && !pick?.isDriver
+                        ? ` · voiture de ${pick.driverDisplayName}`
+                        : ""}
+                    </p>
+                  </div>
+                  <span className={statusClass(done ? "done" : pick ? "in_progress" : "todo")}>
+                    {done ? "Terminé" : pick ? "À réserver" : "À choisir"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       ) : null}
 
       {!hasItinerary ? (
