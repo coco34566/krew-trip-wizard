@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { ExternalLink } from "lucide-react";
 import {
   buildTripPreparation,
@@ -215,9 +216,9 @@ export function PackingListCard({
                     ))}
                   </select>
                 )}
-                {link ? (
+                {link && safeExternalUrl(link.url) ? (
                   <a
-                    href={link.url}
+                    href={safeExternalUrl(link.url)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     data-item={item.id}
@@ -367,7 +368,7 @@ export function PackingListCard({
             Trois ambiances pour accompagner le voyage.
           </p>
           <div className="divide-y divide-border/40 border-y border-border/40">
-            {musicRecommendations.map((recommendation) => (
+            {musicRecommendations.filter((recommendation) => Boolean(safeExternalUrl(recommendation.url))).map((recommendation) => (
               <div
                 key={recommendation.id}
                 className="py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
@@ -381,7 +382,7 @@ export function PackingListCard({
                   </p>
                 </div>
                 <a
-                  href={recommendation.url}
+                  href={safeExternalUrl(recommendation.url)!}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-xl px-0 text-sm font-semibold text-primary underline-offset-4 hover:underline sm:self-auto"

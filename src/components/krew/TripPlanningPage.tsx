@@ -1,4 +1,5 @@
 import type { Tables } from "@/integrations/supabase/types";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -299,9 +300,9 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
                             </p>
                           ) : null}
 
-                          {slotLink ? (
+                          {slotLink && safeExternalUrl(slotLink.url) ? (
                             <a
-                              href={slotLink.url}
+                              href={safeExternalUrl(slotLink.url)!}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="mt-1 inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline"

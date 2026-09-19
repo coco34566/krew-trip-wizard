@@ -1,4 +1,5 @@
 import type { Tables } from "@/integrations/supabase/types";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -469,10 +470,10 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                               ))}
                             </div>
                           ) : null}
-                          {(transport.links ?? []).slice(0, 1).map((link: any) => (
+                          {(transport.links ?? []).filter((link: any) => Boolean(safeExternalUrl(link.url))).slice(0, 1).map((link: any) => (
                             <a
                               key={link.url}
-                              href={link.url}
+                              href={safeExternalUrl(link.url)!}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex min-h-9 items-center text-xs font-semibold text-primary hover:underline"

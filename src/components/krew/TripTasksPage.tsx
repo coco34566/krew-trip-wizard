@@ -1,4 +1,5 @@
 import type { Tables } from "@/integrations/supabase/types";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -440,9 +441,9 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
                   <div>{renderAssignee(task)}</div>
                   <div>{renderStatus(task)}</div>
                 </div>
-                {task.booking_url ? (
+                {safeExternalUrl(task.booking_url) ? (
                   <a
-                    href={task.booking_url}
+                    href={safeExternalUrl(task.booking_url)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline"
@@ -475,9 +476,9 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
                     <td className="py-3 pr-3">{renderAssignee(task)}</td>
                     <td className="py-3 pr-3">{renderStatus(task)}</td>
                     <td className="py-3 text-right">
-                      {task.booking_url ? (
+                      {safeExternalUrl(task.booking_url) ? (
                         <a
-                          href={task.booking_url}
+                          href={safeExternalUrl(task.booking_url)!}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs font-semibold text-primary hover:underline"

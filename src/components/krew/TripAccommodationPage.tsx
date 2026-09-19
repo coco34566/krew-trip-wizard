@@ -1,4 +1,5 @@
 import type { Tables } from "@/integrations/supabase/types";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -321,9 +322,9 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
                         <Heart className={cn("size-3.5", iVoted && "fill-current")} />
                         {iVoted ? "Mon vote" : "Voter"} · {hotelVotes.length}
                       </Button>
-                      {hotel.url ? (
+                      {safeExternalUrl(hotel.url) ? (
                         <a
-                          href={hotel.url}
+                          href={safeExternalUrl(hotel.url)!}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex min-h-10 items-center text-xs font-medium text-primary hover:underline"
