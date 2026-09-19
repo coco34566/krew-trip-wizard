@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@v4
       - run: npm ci
       - name: Install Playwright test runner without changing the lockfile
-        run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+        run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
       - name: Run selected full journey
         shell: bash
         run: |
