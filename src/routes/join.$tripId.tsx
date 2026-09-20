@@ -14,6 +14,7 @@ import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { getJoinPreview, joinTrip, checkJoinStatus } from "@/lib/join.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { eventTypeLabel } from "@/lib/krew/constants";
+import { OG_DEFAULT_IMAGE_URL } from "@/lib/site";
 
 export const Route = createFileRoute("/join/$tripId")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -21,11 +22,18 @@ export const Route = createFileRoute("/join/$tripId")({
   }),
   head: () => ({
     meta: [
-      { title: "Rejoindre le voyage — KREW" },
+      { title: "Rejoins le voyage — KREW" },
       {
         name: "description",
-        content: "Tu as été invité·e à rejoindre un voyage organisé avec KREW.",
+        content: "Tu es invité·e à organiser un voyage de groupe avec KREW",
       },
+      { property: "og:title", content: "Rejoins le voyage — KREW" },
+      {
+        property: "og:description",
+        content: "Tu es invité·e à organiser un voyage de groupe avec KREW",
+      },
+      { property: "og:image", content: OG_DEFAULT_IMAGE_URL },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: JoinTripPage,
