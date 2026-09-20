@@ -1,46 +1,24 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Star, Trash2, Wallet } from "lucide-react";
-import { toast } from "sonner";
+import { useMemo } from "react";
+import { Trash2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  getTripDetail,
-  getGenerationReadiness,
-  getCostSplit,
-  removeParticipant,
-  cancelTrip,
-  setCoOrganizer,
-  updateTripParticipantsCount,
-} from "@/lib/trips.functions";
-import {
-  getParticipantsProgress,
-  getMyParticipantPreferences,
-  declareMyStatus,
-} from "@/lib/participant-preferences.functions";
-import { formatEuro } from "@/lib/krew/constants";
-import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
-import { PROFILE_LABELS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
-import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
-import { cn } from "@/lib/utils";
-import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
-import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard.entry";
+import { TripHubFinalRecap } from "@/components/krew/TripHubFinalRecap";
+import { TripHubJourneyView } from "@/components/krew/TripHubJourneyView";
+import { TripHubMembersSection } from "@/components/krew/TripHubMembersSection";
 import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
-import { KrewJourneyTimeline } from "@/components/krew/KrewJourneyTimeline.entry";
-import type { TimelineStep } from "@/components/krew/KrewJourneyTimeline";
-import { getTripAvailability } from "@/lib/availability.functions";
-import { getStarPreferences } from "@/lib/star-preferences.functions";
-import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
-import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
+import { useTripHubActions } from "@/hooks/useTripHubActions";
+import { useTripHubData, type TripHubRecommendation } from "@/hooks/useTripHubData";
+import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
+import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
+import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
+import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -87,31 +65,6 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   }),
   component: TripDetail,
 });
-
-type Recommendation = {
-  id: string;
-  score: number;
-  rationale: string | null;
-  match_reasons: string[] | null;
-  is_selected: boolean;
-  itinerary: ItineraryDay[] | null;
-  budget: BudgetBreakdown | null;
-  activity_ids: string[] | null;
-  destinations: {
-    name: string;
-    country: string;
-    description: string | null;
-    image_url: string | null;
-    rating: number;
-  } | null;
-  accommodations: {
-    name: string;
-    type: string;
-    rating: number;
-    price_per_night_per_person: number;
-    distance_center_km: number;
-  } | null;
-};
 
 function TripDetail() {
   const { tripId } = Route.useParams();
@@ -358,7 +311,7 @@ function TripDetail() {
   const trip = data.trip;
   const datesLocked = Boolean(trip.dates_locked);
   const hasItinerary = Boolean((trip as any).group_itinerary?.days?.length);
-  const recommendations = (data.recommendations ?? []) as unknown as Recommendation[];
+  const recommendations = (data.recommendations ?? []) as unknown as TripHubRecommendation[];
   const activities = (data.activities ?? []) as {
     id: string;
     name: string;
