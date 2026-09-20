@@ -95,7 +95,7 @@ describe("TripParticipantFeedbackPage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "Retours du groupe" })).toBeTruthy();
-    expect(screen.getByText("Alice")).toBeTruthy();
+    expect(screen.getAllByText("Alice")).toHaveLength(2);
     expect(screen.getByText("Bob")).toBeTruthy();
     expect(screen.getByText("Questionnaire non soumis")).toBeTruthy();
     expect(screen.getByText("1/2 l’acceptent")).toBeTruthy();
