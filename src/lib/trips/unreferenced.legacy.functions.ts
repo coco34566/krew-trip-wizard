@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isTripAdmin } from "@/lib/krew/engine";
+import { isSafeExternalUrl, safeExternalUrl } from "@/lib/safe-url";
 
 export const cancelTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
