@@ -52,7 +52,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     starUserId: tripRes.data.star_user_id,
     starMode,
     participants,
-    preferenceUserIds: preferenceRows.map((row: any) => row.user_id),
+    preferenceRows: preferenceRows.map((row: any) => ({ user_id: row.user_id, submitted_at: row.submitted_at })),
     availabilityUserIds: availabilityRows.map((row: any) => row.user_id),
     secretStarHasPreferences: hasSecretStarPreferences(starPrefs),
     secretStarHasAvailability: hasSecretStarAvailability(starPrefs),
@@ -88,9 +88,9 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
           hasStar &&
           starMode === "participant" &&
           Boolean(tripRes.data.star_user_id && participant.user_id === tripRes.data.star_user_id),
-        hasAnswered: Boolean(preference),
+        hasAnswered: Boolean(preference?.submitted_at),
         hasAnsweredAvailability: availabilityUsers.has(participant.user_id),
-        answeredAt: preference ? preference.updated_at || preference.submitted_at : null,
+        answeredAt: preference?.submitted_at ?? null,
         departure_city: preference?.departure_city || " ",
       };
     });
@@ -109,7 +109,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
       isStar: false,
       hasAnswered: Boolean(ownerPref),
       hasAnsweredAvailability: availabilityUsers.has(tripRes.data.owner_id),
-      answeredAt: ownerPref ? ownerPref.updated_at || ownerPref.submitted_at : null,
+      answeredAt: ownerPref?.submitted_at ?? null,
       departure_city: ownerPref?.departure_city || " ",
     });
   }
@@ -132,9 +132,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
       isStar: false,
       hasAnswered: Boolean(coOrganizerPref),
       hasAnsweredAvailability: availabilityUsers.has(tripRes.data.co_organizer_id),
-      answeredAt: coOrganizerPref
-        ? coOrganizerPref.updated_at || coOrganizerPref.submitted_at
-        : null,
+      answeredAt: coOrganizerPref?.submitted_at ?? null,
       departure_city: coOrganizerPref?.departure_city || " ",
     });
   }
@@ -150,7 +148,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
       isSecretStar: true,
       hasAnswered: hasSecretStarPreferences(starPrefs),
       hasAnsweredAvailability: hasSecretStarAvailability(starPrefs),
-      answeredAt: starPrefs?.updated_at || starPrefs?.submitted_at || null,
+      answeredAt: starPrefs?.submitted_at || null,
     });
   }
 
