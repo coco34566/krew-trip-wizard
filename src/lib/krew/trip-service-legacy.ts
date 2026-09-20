@@ -31,7 +31,14 @@ import {
   distanceFromParisKm,
   fetchClimate,
   geocodeDestination,
+  haversineKm,
 } from "@/integrations/external/geo-weather.server";
+import {
+  evaluateParticipantTravelConstraint,
+  findCandidateTransportForOrigin,
+  hasDeclaredTravelConstraint,
+} from "./travel-constraints";
+import { resolveRouteDistanceKm } from "./travel-distance.server";
 import { aggregateStayProfiles, buildStayConcepts, routeDiscovery, type StayProfileId } from "./stay-profiles";
 import { attachAnchorEnrichments } from "./discovery-enrichment";
 
@@ -293,16 +300,11 @@ export async function getDestinationBriefContext(
       needs_city_center: aggregated.needsAccessibility
         ? true
         : (preferencesRes.data?.needs_city_center ?? true),
-      max_travel_duration_hours: aggregated.maxTravelDurationHours,
-      plane_refused: aggregated.planeRefused,
+      max_travel_duration_hours: null,
+      plane_refused: false,
       blackout_dates: aggregated.blackoutDates,
       group_weather_preference: aggregated.groupWeatherPreference,
-      max_distance_km: aggregated.maxTravelDurationHours
-        ? Math.min(
-            Number(preferencesRes.data?.max_distance_km ?? 2000),
-            Math.round(Number(aggregated.maxTravelDurationHours) * 90),
-          )
-        : (preferencesRes.data?.max_distance_km ?? undefined),
+      max_distance_km: preferencesRes.data?.max_distance_km ?? undefined,
     } as any;
   }
 
@@ -331,18 +333,10 @@ export async function getDestinationBriefContext(
   if (aggregated.needsAccessibility) scoringContext.needsCityCenter = true;
 
   scoringContext.departureOrigins = aggregated.departureOrigins ?? [];
-  scoringContext.planeRefused = Boolean(aggregated.planeRefused);
-  scoringContext.transportModes = aggregated.transportModes ?? [];
-
-  if (aggregated.planeRefused) {
-    scoringContext.maxDistanceKm = Math.min(scoringContext.maxDistanceKm, 900);
-  }
-  if (aggregated.maxTravelDurationHours && Number(aggregated.maxTravelDurationHours) > 0) {
-    scoringContext.maxDistanceKm = Math.min(
-      scoringContext.maxDistanceKm,
-      Math.round(Number(aggregated.maxTravelDurationHours) * 90),
-    );
-  }
+  scoringContext.planeRefused = false;
+  scoringContext.transportModes = [];
+  scoringContext.maxTravelDurationHours = null;
+  scoringContext.travelConstraintsEvaluatedPerParticipant = true;
 
   const primaryDeparture =
     (aggregated.departureOrigins?.[0]?.city as string | undefined) ||
@@ -366,15 +360,15 @@ export async function getDestinationBriefContext(
     })),
     acceptedTransportModes: [
       ...new Set(
-        aggregated.individualPreferences.flatMap(
-          (preference: any) => preference.transportModeAccepted ?? [],
-        ),
+        aggregated.individualPreferences
+          .filter((preference: any) => Boolean(preference.submittedAt))
+          .flatMap((preference: any) => preference.transportModes ?? []),
       ),
     ].filter((mode): mode is string => typeof mode === "string" && mode !== "bus"),
     participants: scoringContext.participants,
     ...(tripRes.data.event_type ? { eventType: tripRes.data.event_type as string } : {}),
-    planeRefused: Boolean((aggregated as any).planeRefused),
-    maxTravelHours: (aggregated as any).maxTravelDurationHours ?? null,
+    planeRefused: false,
+    maxTravelHours: null,
     starWanted: aggregated.starWantedActivities ?? [],
     starDealBreakers: aggregated.starDealBreakers ?? [],
     wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
@@ -395,13 +389,19 @@ export async function getDestinationBriefContext(
     accommodationRole:
       aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ??
       null,
-    relevantIndividualPreferences: aggregated.individualPreferences.map((p: any) => ({
-      activities: p.activityCategories,
-      environment: p.wantedEnvType,
-      mobility: p.localMobility,
-      accommodationRole: p.accommodationRole,
-      isStar: p.isStar,
-    })),
+    relevantIndividualPreferences: aggregated.individualPreferences
+      .filter((p: any) => Boolean(p.submittedAt))
+      .map((p: any) => ({
+        userId: p.userId,
+        departureCity: p.departureCity,
+        transportModes: p.transportModes,
+        maxTravelHours: p.maxTravelHours,
+        activities: p.activityCategories,
+        environment: p.wantedEnvType,
+        mobility: p.localMobility,
+        accommodationRole: p.accommodationRole,
+        isStar: p.isStar,
+      })),
     scoringSignals: {
       desiredDestination: resolvedDestination,
       letKrewDecide,
@@ -413,7 +413,14 @@ export async function getDestinationBriefContext(
         minGroupBudget: scoringContext.minGroupBudget,
         excludedCountries: scoringContext.excludedCountries,
         maxDistanceKm: scoringContext.maxDistanceKm,
-        maxTravelHours: scoringContext.maxTravelDurationHours,
+        participantTravelConstraints: aggregated.individualPreferences
+          .filter((p: any) => Boolean(p.submittedAt))
+          .map((p: any) => ({
+            departureCity: p.departureCity,
+            transportModes: p.transportModes,
+            maxTravelHours: p.maxTravelHours,
+            isStar: p.isStar,
+          })),
       },
       softPreferences: {
         travelPace: scoringContext.travelPace,
@@ -614,7 +621,7 @@ export async function aggregateParticipantPreferences(
   const res = await supabase
     .from("trip_participant_preferences")
     .select(
-      "user_id, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, lodging_type_preferences, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates, group_age_range, wanted_env_type, weather_preference, free_text, local_mobility, accommodation_role",
+      "user_id, submitted_at, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, lodging_type_preferences, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates, group_age_range, wanted_env_type, weather_preference, free_text, local_mobility, accommodation_role",
     )
     .eq("trip_id", tripId);
   if (res.error) {
@@ -713,6 +720,7 @@ export async function aggregateParticipantPreferences(
         rows.push({
           __isStar: true,
           user_id: tripMeta.data?.star_user_id ?? STAR_VIRTUAL_USER_ID,
+          submitted_at: starData.submitted_at ?? null,
           ambiances: starData.ambiances ?? [],
           activity_categories: withoutEventSpecificSignals(starData.wanted_activities),
           budget_max: null,
@@ -912,6 +920,8 @@ export async function aggregateParticipantPreferences(
     const uid = (r.user_id as string) || null;
     const isStar = Boolean(r.__isStar || (starUserId && uid && uid === starUserId));
     return {
+      userId: uid,
+      submittedAt: r.submitted_at ?? null,
       ambiances: r.ambiances ?? [],
       activityCategories: r.activity_categories ?? [],
       budgetMax: Number(r.budget_max ?? 0) > 0 ? Number(r.budget_max) : null,
@@ -1335,6 +1345,7 @@ export async function generateRecommendationsForTrip(
   const briefContext = await getDestinationBriefContext(supabase, tripId);
   const {
     trip: tripData,
+    participants,
     readiness,
     aggregated,
     resolvedDestination,
@@ -1409,6 +1420,7 @@ export async function generateRecommendationsForTrip(
 
   const catalogQuery = {
     maxDistanceKm: ctx.maxDistanceKm,
+    applyDistanceFilter: false,
     excludedCountries: ctx.excludedCountries,
     participants: ctx.participants,
     nights: ctx.nights,
@@ -1770,6 +1782,7 @@ export async function generateRecommendationsForTrip(
   // Destination discovery deliberately does not search live flights, properties or
   // activities. Those providers belong to their explicit downstream workflows.
   const providerErrors: string[] = [];
+  const travelConstraintRejections: Array<{ destination: string; reason: string }> = [];
 
   // 3) Catalogue enrichi — TOUJOURS restreint à la shortlist dynamique
   //    (sans ce filtre, loadTravelCatalog recharge tout le seed SQL)
@@ -1924,10 +1937,28 @@ export async function generateRecommendationsForTrip(
           ? 130
           : Math.round(130 + (distanceKm - 1600) * 0.05);
 
-  const acceptedModesSet = new Set(
-    (ctx.transportModes ?? []).map((m) => m.toLowerCase().trim()),
+  const participantNameByUserId = new Map(
+    (participants ?? [])
+      .filter((participant: any) => participant?.user_id)
+      .map((participant: any) => [
+        participant.user_id,
+        participant.display_name || participant.email?.split("@")?.[0] || null,
+      ]),
   );
-  const hasModeConstraints = acceptedModesSet.size > 0 && !acceptedModesSet.has("peu importe");
+  const constrainedParticipants = (aggregated.individualPreferences ?? [])
+    .filter((preference: any) => Boolean(preference.submittedAt))
+    .map((preference: any) => ({
+      userId: preference.userId ?? null,
+      displayName: preference.isStar
+        ? (trip.data.celebrated_person || "Star")
+        : participantNameByUserId.get(preference.userId) ||
+          (preference.userId === trip.data.owner_id ? "Organisateur·rice" : null),
+      departureCity: preference.departureCity ?? null,
+      transportModes: preference.transportModes ?? [],
+      maxTravelHours: preference.maxTravelHours ?? null,
+    }))
+    .filter((preference) => hasDeclaredTravelConstraint(preference));
+
   const incompatibleDestinationIds = new Set<string>();
 
   for (const destination of catalogFinal.destinations) {
@@ -1936,61 +1967,66 @@ export async function generateRecommendationsForTrip(
     );
     if (!candidate) continue;
 
+    const distanceByCity = new Map<string, { distanceKm: number; estimated: boolean }>();
+    const distanceForCity = async (city: string) => {
+      const key = normCity(city);
+      const cached = distanceByCity.get(key);
+      if (cached) return cached;
+      const resolved = await resolveRouteDistanceKm({
+        originCity: city,
+        destinationName: destination.country
+          ? `${destination.name}, ${destination.country}`
+          : destination.name,
+        destinationLatitude: destination.latitude,
+        destinationLongitude: destination.longitude,
+        fallbackDistanceKm: destination.distance_from_paris_km,
+      });
+      distanceByCity.set(key, resolved);
+      if (resolved.estimated) {
+        providerErrors.push(
+          `[distance-estimated] ${city} → ${destination.name}: fallback utilisé`,
+        );
+      }
+      return resolved;
+    };
+
     let candidateIncompatible = false;
-
-    const byOrigin = originsForQuote.map((origin) => {
-      let candidateTransportInfo: { modes: string[]; approxHours: number } | undefined;
-      if (candidate.transport) {
-        const normOriginCity = normCity(origin.city);
-        for (const [key, val] of Object.entries(candidate.transport)) {
-          if (normCity(key) === normOriginCity) {
-            candidateTransportInfo = val;
-            break;
-          }
-        }
+    for (const participant of constrainedParticipants) {
+      if (!participant.departureCity?.trim()) continue;
+      const distance = await distanceForCity(participant.departureCity);
+      const transportInfo = findCandidateTransportForOrigin(
+        candidate.transport,
+        participant.departureCity,
+      );
+      const rejection = evaluateParticipantTravelConstraint({
+        participant,
+        distanceKm: distance.distanceKm,
+        candidateTransport: transportInfo,
+      });
+      if (rejection) {
+        candidateIncompatible = true;
+        travelConstraintRejections.push({
+          destination: destination.name,
+          reason: rejection.reason,
+        });
+        providerErrors.push(
+          `[travel-constraint] ${destination.name}: ${rejection.reason}`,
+        );
+        break;
       }
+    }
 
-      if (candidateTransportInfo) {
-        const modes = (candidateTransportInfo.modes ?? []).map((m) => m.toLowerCase().trim());
-
-        if (modes.length > 0) {
-          if (ctx.planeRefused && modes.every((m) => m === "flight" || m === "avion")) {
-            candidateIncompatible = true;
-          } else if (hasModeConstraints) {
-            const hasAcceptedMode = modes.some((m) => {
-              if (ctx.planeRefused && (m === "flight" || m === "avion")) return false;
-              return (
-                acceptedModesSet.has(m) ||
-                (m === "flight" && acceptedModesSet.has("avion")) ||
-                (m === "train" && acceptedModesSet.has("train")) ||
-                (m === "car" && (acceptedModesSet.has("voiture") || acceptedModesSet.has("covoiturage")))
-              );
-            });
-            if (!hasAcceptedMode) {
-              candidateIncompatible = true;
-            }
-          } else if (ctx.planeRefused && modes.some((m) => m === "flight" || m === "avion") && !modes.some((m) => m !== "flight" && m !== "avion")) {
-            candidateIncompatible = true;
-          }
-        }
-
-        const maxHours = ctx.maxTravelDurationHours;
-        const durationHours = candidateTransportInfo.approxHours;
-        if (maxHours != null && maxHours > 0 && durationHours != null && durationHours > 0) {
-          if (durationHours > maxHours) {
-            candidateIncompatible = true;
-          }
-        }
-      }
-
-      const pricePerPerson = fallbackTransport(destination.distance_from_paris_km);
-
-      return {
-        city: origin.city,
-        count: origin.count,
-        pricePerPerson,
-      };
-    });
+    const byOrigin = await Promise.all(
+      originsForQuote.map(async (origin) => {
+        const distance = await distanceForCity(origin.city);
+        const pricePerPerson = fallbackTransport(distance.distanceKm);
+        return {
+          city: origin.city,
+          count: origin.count,
+          pricePerPerson,
+        };
+      }),
+    );
 
     if (candidateIncompatible) {
       incompatibleDestinationIds.add(destination.id);
@@ -2170,6 +2206,7 @@ export async function generateRecommendationsForTrip(
       count: 0,
       generationState: "no_admissible_proposals",
       providerErrors,
+      travelConstraintRejections,
       shortlist: shortlistNames,
       apiAccommodations: apiAccIds.size,
       llmRationales,
@@ -2195,6 +2232,7 @@ export async function generateRecommendationsForTrip(
     count: rows.length,
     generationState: rows.length ? "generated" : "no_admissible_proposals",
     providerErrors,
+    travelConstraintRejections,
     shortlist: shortlistNames,
     apiAccommodations: apiAccIds.size,
     transportQuotes: Object.keys(transportByDestinationId).length,

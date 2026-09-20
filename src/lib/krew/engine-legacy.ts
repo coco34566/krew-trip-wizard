@@ -93,6 +93,8 @@ export type DepartureOrigin = {
 
 /** Préférences brutes d'un participant (pour satisfaction individuelle). */
 export type IndividualPreference = {
+  userId?: string | null;
+  submittedAt?: string | null;
   ambiances: string[];
   activityCategories: string[];
   budgetMax: number | null;
@@ -232,6 +234,8 @@ export type ScoringContext = {
   startDate?: string | null;
   endDate?: string | null;
   datesVerified?: boolean;
+  /** Les contraintes transport sont déjà validées individuellement avant le scoring. */
+  travelConstraintsEvaluatedPerParticipant?: boolean;
 };
 
 export type ItineraryDay = {
@@ -1416,11 +1420,13 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
 
   const candidates = catalog.destinations.filter((d) => {
     if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
-    if (d.distance_from_paris_km > ctx.maxDistanceKm * 1.15) return false;
-    if (ctx.planeRefused && d.distance_from_paris_km > 700) return false;
-    const modeOptions = allowedTransportOptions(d.distance_from_paris_km);
-    if (!modeOptions.length) return false;
-    if (!isTransportCompatible(modeOptions, ctx.maxTravelDurationHours)) return false;
+    if (!ctx.travelConstraintsEvaluatedPerParticipant) {
+      if (d.distance_from_paris_km > ctx.maxDistanceKm * 1.15) return false;
+      if (ctx.planeRefused && d.distance_from_paris_km > 700) return false;
+      const modeOptions = allowedTransportOptions(d.distance_from_paris_km);
+      if (!modeOptions.length) return false;
+      if (!isTransportCompatible(modeOptions, ctx.maxTravelDurationHours)) return false;
+    }
     if (hitsDealBreaker(d, dealAmb, dealDest)) return false;
     return true;
   });

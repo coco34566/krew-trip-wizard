@@ -18,6 +18,8 @@ import type { TravelCatalog } from "./engine";
 
 export type CatalogQuery = {
   maxDistanceKm: number;
+  /** Désactive le préfiltre Paris-distance quand les contraintes sont évaluées par origine. */
+  applyDistanceFilter?: boolean;
   excludedCountries: string[];
   participants: number;
   nights: number;
@@ -41,11 +43,15 @@ export function createInternalProvider(supabase: SupabaseClient): TravelDataProv
   return {
     name: "krew_internal",
     async fetchCatalog(query) {
-      const [destinations, activities, accommodations] = await Promise.all([
-        supabase
-          .from("destinations")
-          .select("*")
-          .lte("distance_from_paris_km", Math.round(query.maxDistanceKm * 1.15)),
+      const destinationQuery = supabase.from("destinations").select("*");
+      const destinations =
+        query.applyDistanceFilter === false
+          ? await destinationQuery
+          : await destinationQuery.lte(
+              "distance_from_paris_km",
+              Math.round(query.maxDistanceKm * 1.15),
+            );
+      const [activities, accommodations] = await Promise.all([
         supabase.from("activities").select("*"),
         supabase.from("accommodations").select("*"),
       ]);

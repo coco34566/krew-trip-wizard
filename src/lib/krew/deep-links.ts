@@ -40,7 +40,10 @@ export function cityToIataOrName(city: string): string {
   return CITY_IATA[key] ?? city.trim();
 }
 
-function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
+export function estimateDistanceKmFromCoordinates(
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number },
+): number {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLon = ((b.lon - a.lon) * Math.PI) / 180;
@@ -54,7 +57,7 @@ function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: num
 export function estimateDistanceKm(originCity: string, destCity: string, fallbackKm?: number | null): number {
   const o = CITY_COORDS[normalizeCityKey(originCity)];
   const d = CITY_COORDS[normalizeCityKey(destCity)];
-  if (o && d) return Math.round(haversineKm(o, d));
+  if (o && d) return Math.round(estimateDistanceKmFromCoordinates(o, d));
   if (fallbackKm != null && Number.isFinite(fallbackKm)) return Number(fallbackKm);
   return 9999;
 }

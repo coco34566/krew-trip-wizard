@@ -36,6 +36,7 @@ export type ClimateSummary = {
 };
 
 const PARIS = { lat: 48.8566, lon: 2.3522 };
+const geocodeCache = new Map<string, GeoPlace | null>();
 
 export function haversineKm(
   a: { lat: number; lon: number },
@@ -57,21 +58,32 @@ export function distanceFromParisKm(lat: number, lon: number): number {
 
 /** Résout un nom de ville en coordonnées + pays. */
 export async function geocodeDestination(query: string): Promise<GeoPlace | null> {
+  const cacheKey = query.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  if (geocodeCache.has(cacheKey)) return geocodeCache.get(cacheKey) ?? null;
+
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
     query,
   )}&count=1&language=fr&format=json`;
   const res = await fetchExternal(url);
-  if (!res.ok) return null;
+  if (!res.ok) {
+    geocodeCache.set(cacheKey, null);
+    return null;
+  }
   const payload = (await res.json()) as { results?: any[] };
   const hit = payload.results?.[0];
-  if (!hit) return null;
-  return {
+  if (!hit) {
+    geocodeCache.set(cacheKey, null);
+    return null;
+  }
+  const place = {
     name: String(hit.name),
     country: String(hit.country ?? ""),
     latitude: Number(hit.latitude),
     longitude: Number(hit.longitude),
     population: hit.population ? Number(hit.population) : null,
   };
+  geocodeCache.set(cacheKey, place);
+  return place;
 }
 
 const MONTH_LABELS = [
