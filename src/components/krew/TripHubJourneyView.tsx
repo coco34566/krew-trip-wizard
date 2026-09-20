@@ -4,8 +4,7 @@ import { ArrowLeft, Wallet } from "lucide-react";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { KrewJourneyTimeline } from "@/components/krew/KrewJourneyTimeline.entry";
 import type { TimelineStep } from "@/components/krew/KrewJourneyTimeline";
-import { formatEuro } from "@/lib/krew/constants";
-import { PROFILE_LABELS, type StayProfileId } from "@/lib/krew/stay-profiles";
+import { PROFILE_LABELS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
 
 export function TripHubJourneyView({
   currentView,
@@ -32,7 +31,7 @@ export function TripHubJourneyView({
   costSplitData,
 }: {
   currentView: string;
-  currentSection?: string;
+  currentSection: string | undefined;
   progress: any;
   trip: any;
   datesLocked: boolean;
@@ -154,7 +153,7 @@ export function TripHubJourneyView({
                 id: "profile",
                 title: "Profil du voyage",
                 subtitle: profile?.selectedConcepts?.length
-                  ? profile.selectedConcepts.map((c) => PROFILE_LABELS[c.id as StayProfileId] || c.title).join(" · ")
+                  ? profile.selectedConcepts.map((c: StayConcept) => PROFILE_LABELS[c.id as StayProfileId] || c.title).join(" · ")
                   : profileDone
                     ? "Profil enregistré"
                     : "À choisir",
@@ -246,6 +245,7 @@ export function TripHubJourneyView({
             <Link
               to="/trips/$tripId"
               params={{ tripId }}
+              search={{ view: "voyage" }}
               className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               <ArrowLeft className="size-4" /> Retour au voyage
