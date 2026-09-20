@@ -27,7 +27,7 @@ import {
   generateGroupItinerary,
   getTripDetail,
   regenerateItinerarySlot,
-} from "@/lib/trips.functions.entry";
+} from "@/lib/trips.functions";
 
 type PlanningItineraryDay = {
   day: number;

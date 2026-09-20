@@ -4,19 +4,19 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { getTripDetail as routedGetTripDetail } from "@/lib/trips.functions";
-import { getTripDetail as legacyGetTripDetail } from "../trips.functions";
+import { getTripDetail as domainGetTripDetail } from "../trips/queries.functions";
 
 describe("atomic group_logistics wiring", () => {
   it("overrides only hotel votes and transport picks", () => {
     const entry = readFileSync(
-      resolve(process.cwd(), "src/lib/trips.functions.entry.ts"),
+      resolve(process.cwd(), "src/lib/trips.functions.ts"),
       "utf8",
     );
 
-    expect(entry).toContain("export * from \"./trips.functions\"");
+    expect(entry).toContain("export * from \"./trips/queries.functions\"");
     expect(entry).toContain("voteHotelAtomic as voteHotel");
     expect(entry).toContain("pickTransportAtomic as pickTransport");
-    expect(routedGetTripDetail).toBe(legacyGetTripDetail);
+    expect(routedGetTripDetail).toBe(domainGetTripDetail);
   });
 
   it("keeps the RPCs row-locked and service-role-only", () => {
