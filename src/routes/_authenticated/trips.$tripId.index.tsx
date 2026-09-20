@@ -1,7 +1,6 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Trash2 } from "lucide-react";
-
 import { Skeleton } from "@/components/ui/skeleton";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard.entry";
@@ -19,7 +18,6 @@ import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { cn } from "@/lib/utils";
-
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   validateSearch: (search: Record<string, unknown>) => ({
     view: (search.view as string) || "todo",
@@ -65,7 +63,6 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   }),
   component: TripDetail,
 });
-
 function TripDetail() {
   const { tripId } = Route.useParams();
   const search = Route.useSearch();
@@ -94,12 +91,10 @@ function TripDetail() {
     declareStatusMutation,
     cancelMutation,
   } = useTripHubActions(tripId);
-
   const tripPreview = data?.trip as any;
   const recommendationsPreview = (data?.recommendations ?? []) as any[];
   const selectedRecoPreview = recommendationsPreview.find((r: any) => r.is_selected);
   const logisticsPreview = (tripPreview?.group_logistics || {}) as any;
-
   const liveBudget = useMemo(() => {
     const trip = tripPreview || {};
     const selectedReco = selectedRecoPreview;
@@ -115,7 +110,6 @@ function TripDetail() {
       }
       return Number(trip.duration_nights) || 2;
     })();
-
     let transport = Number(b?.transport ?? 0);
     let accommodation = Number(b?.accommodation ?? 0);
     let activities = Number(b?.activities ?? 0);
