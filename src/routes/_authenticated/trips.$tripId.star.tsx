@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
@@ -214,6 +215,8 @@ function StarQuestionnaire() {
   const [weatherPreference, setWeatherPreference] = useState<number>(1);
   const [localMobility, setLocalMobility] = useState<"walk_transit" | "car_if_worth_it" | "car_ok" | null>(null);
   const [accommodationRole, setAccommodationRole] = useState<"base_only" | "part_of_stay" | "centerpiece" | null>(null);
+  const [transportModeAccepted, setTransportModeAccepted] = useState<string[]>(["peu importe"]);
+  const [maxTravelDurationHours, setMaxTravelDurationHours] = useState(6);
   const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
   const [paintMode, setPaintMode] = useState<"available" | "blocked">("available");
   const [monthOffset, setMonthOffset] = useState(0);
@@ -241,6 +244,10 @@ function StarQuestionnaire() {
       setWeatherPreference((data.preferences as any).weatherPreference ?? 1);
       setLocalMobility((data.preferences as any).localMobility ?? null);
       setAccommodationRole((data.preferences as any).accommodationRole ?? null);
+      setTransportModeAccepted((data.preferences as any).transportModeAccepted?.length
+        ? (data.preferences as any).transportModeAccepted
+        : ["peu importe"]);
+      setMaxTravelDurationHours(Number((data.preferences as any).maxTravelDurationHours) || 6);
       const m = new Map<string, DayMode>();
       for (const d of data.preferences.availableDates ?? []) m.set(d.slice(0, 10), "available");
       for (const d of data.preferences.blockedDates ?? []) m.set(d.slice(0, 10), "blocked");
@@ -329,6 +336,8 @@ function StarQuestionnaire() {
         weatherPreference,
         localMobility,
         accommodationRole,
+        transportModeAccepted,
+        maxTravelDurationHours,
       },
     }),
     onSuccess: () => {
@@ -616,6 +625,41 @@ function StarQuestionnaire() {
                   setDepartureAirportOrStation(sel.airportIata || "");
                 }}
                 placeholder="Ex. Lyon, 69001, Paris…"
+              />
+            </div>
+            <div className="space-y-3">
+              <Label className="block text-base font-semibold text-foreground">Modes de transport acceptés</Label>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {["avion", "train", "voiture", "peu importe"].map((m) => (
+                  <SelectableOption
+                    key={m}
+                    active={transportModeAccepted.includes(m)}
+                    onClick={() => {
+                      setTransportModeAccepted((prev) => {
+                        if (m === "peu importe") return ["peu importe"];
+                        const without = prev.filter((x) => x !== "peu importe" && x !== m);
+                        const next = prev.includes(m) ? without : [...without, m];
+                        return next.length ? next : ["peu importe"];
+                      });
+                    }}
+                    className="text-center"
+                  >
+                    {m.charAt(0).toUpperCase() + m.slice(1)}
+                  </SelectableOption>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Label className="block text-base font-semibold text-foreground">
+                Durée de trajet max : <span className="font-mono text-primary">{maxTravelDurationHours} h</span>
+              </Label>
+              <Slider
+                min={2}
+                max={12}
+                step={1}
+                value={[maxTravelDurationHours]}
+                onValueChange={([v]) => setMaxTravelDurationHours(v ?? 6)}
+                className="py-2"
               />
             </div>
             <div className="space-y-3">
