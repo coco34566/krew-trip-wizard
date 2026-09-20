@@ -345,7 +345,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
           id: `dest-${i + 1}`,
           name: c.name,
           country: c.country,
-          distance_from_paris_km: 500,
+          distance_from_paris_km: c.name === "TooLong" ? 1000 : 500,
           avg_daily_cost: 80,
           best_months: [6, 7, 8],
           score_fete: 0.5,
@@ -499,7 +499,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
         reason: "vol direct",
         destinationType: "city" as const,
         anchorPlaces: ["FlightOnly"],
-        transport: { Paris: { modes: ["flight"], approxHours: 2 } },
+        transport: { Paris: { plausibleModes: ["flight"], plausibility: "likely" as const } },
       },
       {
         name: "TooLong",
@@ -508,7 +508,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
         reason: "train long",
         destinationType: "city" as const,
         anchorPlaces: ["TooLong"],
-        transport: { Paris: { modes: ["train"], approxHours: 12 } },
+        transport: { Paris: { plausibleModes: ["train"], plausibility: "likely" as const } },
       },
       {
         name: "NormalFallback",
@@ -618,13 +618,17 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
                   data: [
                     {
                       user_id: "u1",
+                      submitted_at: "2026-09-20T10:00:00Z",
                       ambiances: ["fete"],
+                      departure_city: "Paris",
                       transport_mode_accepted: ["train"], // pas d'avion
                       max_travel_duration_hours: 4, // 4h max
                     },
                     {
                       user_id: "u2",
+                      submitted_at: "2026-09-20T10:05:00Z",
                       ambiances: ["detente"],
+                      departure_city: "Paris",
                       transport_mode_accepted: ["train"],
                       max_travel_duration_hours: 4,
                     },
