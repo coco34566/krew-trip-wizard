@@ -110,6 +110,9 @@ export const listMyTrips = createServerFn({ method: "GET" })
     }
 
     if (uniqueIds.length) {
+      // uniqueIds only contains trips already visible to the authenticated user.
+      // Group questionnaire counters need all respondents, so read those rows server-side.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const [allRecos, selRecos, tripExtras, allParticipants, allPrefs, allAvail, allStarPrefs] = await Promise.all([
         supabase
           .from("recommendations")
@@ -128,7 +131,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
           .from("trip_participants")
           .select("id, trip_id, user_id, email, display_name, status")
           .in("trip_id", uniqueIds),
-        supabase
+        supabaseAdmin
           .from("trip_participant_preferences")
           .select("trip_id, user_id, submitted_at, updated_at")
           .in("trip_id", uniqueIds),
@@ -136,7 +139,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
           .from("trip_availability")
           .select("trip_id, user_id")
           .in("trip_id", uniqueIds),
-        supabase
+        supabaseAdmin
           .from("trip_star_preferences")
           .select("trip_id, user_id, wanted_activities, ambiances, wanted_env_type, desired_destination, available_dates, blocked_dates, submitted_at, updated_at")
           .in("trip_id", uniqueIds),
@@ -343,7 +346,8 @@ export const getTripDetail = createServerFn({ method: "GET" })
       activityRows = activities.error ? [] : (activities.data ?? []);
     }
 
-    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const aggregated = await aggregateParticipantPreferences(supabaseAdmin, data.tripId);
     const calculatedConcepts = normalizeStayConcepts((aggregated.stayConcepts ?? []).slice(0, 3));
     const storedCalculated = normalizeStayConcepts(((trip.data as any).stay_concepts_calculated ?? []));
     const selectedConcepts = normalizeStayConcepts(((trip.data as any).stay_concepts_selected ?? []));

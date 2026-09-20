@@ -193,4 +193,15 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
 export const getTripAvailability = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
-  .handler(async ({ data, context }) => getTripAvailabilityHelper(context.supabase, context.userId, data.tripId));
+  .handler(async ({ data, context }) => {
+    const access = await context.supabase
+      .from("trips")
+      .select("id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (access.error) throw access.error;
+    if (!access.data) throw new Error("403 Forbidden");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    return getTripAvailabilityHelper(supabaseAdmin, context.userId, data.tripId);
+  });
