@@ -216,7 +216,7 @@ function StarQuestionnaire() {
   const [localMobility, setLocalMobility] = useState<"walk_transit" | "car_if_worth_it" | "car_ok" | null>(null);
   const [accommodationRole, setAccommodationRole] = useState<"base_only" | "part_of_stay" | "centerpiece" | null>(null);
   const [transportModeAccepted, setTransportModeAccepted] = useState<string[]>(["peu importe"]);
-  const [maxTravelDurationHours, setMaxTravelDurationHours] = useState(6);
+  const [maxTravelDurationHours, setMaxTravelDurationHours] = useState<number | null>(null);
   const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
   const [paintMode, setPaintMode] = useState<"available" | "blocked">("available");
   const [monthOffset, setMonthOffset] = useState(0);
@@ -247,7 +247,11 @@ function StarQuestionnaire() {
       setTransportModeAccepted((data.preferences as any).transportModeAccepted?.length
         ? (data.preferences as any).transportModeAccepted
         : ["peu importe"]);
-      setMaxTravelDurationHours(Number((data.preferences as any).maxTravelDurationHours) || 6);
+      setMaxTravelDurationHours(
+        (data.preferences as any).maxTravelDurationHours != null
+          ? Number((data.preferences as any).maxTravelDurationHours)
+          : null,
+      );
       const m = new Map<string, DayMode>();
       for (const d of data.preferences.availableDates ?? []) m.set(d.slice(0, 10), "available");
       for (const d of data.preferences.blockedDates ?? []) m.set(d.slice(0, 10), "blocked");
@@ -650,17 +654,36 @@ function StarQuestionnaire() {
               </div>
             </div>
             <div className="space-y-3">
-              <Label className="block text-base font-semibold text-foreground">
-                Durée de trajet max : <span className="font-mono text-primary">{maxTravelDurationHours} h</span>
-              </Label>
-              <Slider
-                min={2}
-                max={12}
-                step={1}
-                value={[maxTravelDurationHours]}
-                onValueChange={([v]) => setMaxTravelDurationHours(v ?? 6)}
-                className="py-2"
-              />
+              <Label className="block text-base font-semibold text-foreground">Durée de trajet max</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <SelectableOption
+                  active={maxTravelDurationHours == null}
+                  onClick={() => setMaxTravelDurationHours(null)}
+                >
+                  Pas de limite
+                </SelectableOption>
+                <SelectableOption
+                  active={maxTravelDurationHours != null}
+                  onClick={() => setMaxTravelDurationHours((current) => current ?? 6)}
+                >
+                  Définir une limite
+                </SelectableOption>
+              </div>
+              {maxTravelDurationHours != null ? (
+                <div className="space-y-2 pt-1">
+                  <p className="text-sm text-muted-foreground">
+                    Maximum : <span className="font-mono font-semibold text-primary">{maxTravelDurationHours} h</span>
+                  </p>
+                  <Slider
+                    min={2}
+                    max={12}
+                    step={1}
+                    value={[maxTravelDurationHours]}
+                    onValueChange={([v]) => setMaxTravelDurationHours(v ?? 6)}
+                    className="py-2"
+                  />
+                </div>
+              ) : null}
             </div>
             <div className="space-y-3">
               <Label className="block text-base font-semibold text-foreground">Sur place, qu’est-ce qui lui conviendrait le mieux ?</Label>

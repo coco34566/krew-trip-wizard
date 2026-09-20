@@ -42,7 +42,7 @@ export const participantPreferencesSchema = z.object({
   dealBreakerAmbiances: z.array(z.string()).default([]),
   departureAirportOrStation: z.string().max(80).optional(),
   transportModeAccepted: z.array(z.string()).default(["peu importe"]),
-  maxTravelDurationHours: z.number().min(0).max(48).optional(),
+  maxTravelDurationHours: z.number().min(0).max(48).optional().nullable(),
   accessibilityNeeds: z.boolean().default(false),
   blackoutDates: z.array(z.string()).default([]),
   groupAgeRange: z.string().max(80).optional(),

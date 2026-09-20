@@ -8,6 +8,7 @@ import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import type { TripHubActions } from "@/hooks/useTripHubActions";
 import type { TripHubData } from "@/hooks/useTripHubData";
+import { isTripAdmin } from "@/lib/krew/engine";
 
 export function TripHubMembersSection({
   hub,
@@ -21,6 +22,8 @@ export function TripHubMembersSection({
   const data = hub.data;
   const trip = hub.trip;
   if (!data || !trip) return null;
+
+  const canManageTrip = isTripAdmin(trip, data.userId);
 
   const participants = hub.participants;
   const logistics = hub.logistics;
@@ -305,7 +308,7 @@ export function TripHubMembersSection({
         </div>
       </div>
 
-      {data.isOwner ? (
+      {canManageTrip ? (
         <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border/40">
           <Button asChild variant="outline" className="w-auto justify-start">
             <Link

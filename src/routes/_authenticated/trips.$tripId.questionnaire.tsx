@@ -126,7 +126,7 @@ function ParticipantQuestionnaire() {
   const [ambiances, setAmbiances] = useState<string[]>([]);
   const [dealBreakerAmbiances, setDealBreakerAmbiances] = useState<string[]>([]);
   const [transportModeAccepted, setTransportModeAccepted] = useState<string[]>(["peu importe"]);
-  const [maxTravelDurationHours, setMaxTravelDurationHours] = useState(6);
+  const [maxTravelDurationHours, setMaxTravelDurationHours] = useState<number | null>(null);
   const [accessibilityNeeds, setAccessibilityNeeds] = useState(false);
   const [activityCategories, setActivityCategories] = useState<string[]>([]);
   const [travelPace, setTravelPace] = useState<string>("equilibre");
@@ -190,7 +190,11 @@ function ParticipantQuestionnaire() {
               ? (preferences as any).transport_mode_accepted
               : ["peu importe"],
           );
-          setMaxTravelDurationHours(Number((preferences as any).max_travel_duration_hours) || 6);
+          setMaxTravelDurationHours(
+            (preferences as any).max_travel_duration_hours != null
+              ? Number((preferences as any).max_travel_duration_hours)
+              : null,
+          );
           setAccessibilityNeeds(Boolean((preferences as any).accessibility_needs));
           setActivityCategories(preferences.activity_categories ?? []);
           setBudgetMax(Number(preferences.budget_max ?? 400));
@@ -760,17 +764,36 @@ function ParticipantQuestionnaire() {
             </div>
           </div>
           <div className="space-y-3 pt-4">
-            <Label className="font-semibold block text-base text-foreground">
-              Durée de trajet max : <span className="font-mono text-primary">{maxTravelDurationHours} h</span>
-            </Label>
-            <Slider
-              min={2}
-              max={12}
-              step={1}
-              value={[maxTravelDurationHours]}
-              onValueChange={([v]) => setMaxTravelDurationHours(v ?? 6)}
-              className="py-2"
-            />
+            <Label className="font-semibold block text-base text-foreground">Durée de trajet max</Label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SelectableOption
+                active={maxTravelDurationHours == null}
+                onClick={() => setMaxTravelDurationHours(null)}
+              >
+                Pas de limite
+              </SelectableOption>
+              <SelectableOption
+                active={maxTravelDurationHours != null}
+                onClick={() => setMaxTravelDurationHours((current) => current ?? 6)}
+              >
+                Définir une limite
+              </SelectableOption>
+            </div>
+            {maxTravelDurationHours != null ? (
+              <div className="space-y-2 pt-1">
+                <p className="text-sm text-muted-foreground">
+                  Maximum : <span className="font-mono font-semibold text-primary">{maxTravelDurationHours} h</span>
+                </p>
+                <Slider
+                  min={2}
+                  max={12}
+                  step={1}
+                  value={[maxTravelDurationHours]}
+                  onValueChange={([v]) => setMaxTravelDurationHours(v ?? 6)}
+                  className="py-2"
+                />
+              </div>
+            ) : null}
           </div>
           <div className="pt-2">
             <SelectableOption
