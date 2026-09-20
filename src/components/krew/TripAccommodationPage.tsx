@@ -169,9 +169,8 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
               action={
                 <Button asChild size="sm">
                   <Link
-                    to="/trips/$tripId"
+                    to="/trips/$tripId/transport"
                     params={{ tripId }}
-                    search={{ view: "voyage", section: "transport" }}
                   >
                     Voir le transport
                   </Link>

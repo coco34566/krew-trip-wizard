@@ -80,7 +80,7 @@ async function fillQuestionnaire(page: Page, tripId: string, profile: "city" | "
 }
 
 async function fillTransportTimePrefs(page: Page, tripId: string, earliest: string, latest: string) {
-  await page.goto(`/trips/${tripId}?view=voyage&section=transport`);
+  await page.goto(`/trips/${tripId}/transport`);
   await handleNormalUserUi(page);
   const transports = page.locator("#hub-transports");
   await expect(transports.getByText("Mes créneaux", { exact: true })).toBeVisible({ timeout: 30_000 });
@@ -220,7 +220,7 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     await fillQuestionnaire(participantPage, tripId!, profile.participant);
 
     stage = "lock-dates";
-    await page.goto(`/trips/${tripId}?view=voyage&section=dates`);
+    await page.goto(`/trips/${tripId}/dates`);
     await handleNormalUserUi(page);
     const datesHeading = page.getByRole("heading", { name: "Dates du groupe", exact: true });
     await expect(datesHeading).toBeVisible({ timeout: 30_000 });
@@ -238,12 +238,12 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
       await userClick(page, validate, "validate organizer dates");
     }
     await waitForTripHub(page, tripId!);
-    await page.goto(`/trips/${tripId}?view=voyage&section=dates`);
+    await page.goto(`/trips/${tripId}/dates`);
     await handleNormalUserUi(page);
     await expect(page.getByText("Dates confirmées", { exact: true })).toBeVisible({ timeout: 30_000 });
 
     stage = "stay-profile";
-    await page.goto(`/trips/${tripId}?view=voyage&section=profile`);
+    await page.goto(`/trips/${tripId}/profile`);
     await handleNormalUserUi(page);
     const stayProfile = page.locator("#hub-profile");
     const validateProfile = stayProfile.getByRole("button", { name: "Valider notre profil de voyage", exact: true });
@@ -254,7 +254,7 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     testInfo.annotations.push({ type: "warning", description: "LIVE API MODE: destination, accommodation, transport and planning may consume provider quota." });
 
     stage = "destinations";
-    await page.goto(`/trips/${tripId}?view=voyage&section=destination`);
+    await page.goto(`/trips/${tripId}/destination`);
     await handleNormalUserUi(page);
     const destinations = page.locator("#hub-destination");
     const generateDestinations = destinations.getByRole("button", { name: "Générer les propositions", exact: true });
@@ -266,7 +266,7 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     await expect(destinations.getByText(/Destination validée/).first()).toBeVisible({ timeout: 30_000 });
 
     stage = "accommodation";
-    await page.goto(`/trips/${tripId}?view=voyage&section=accommodation`);
+    await page.goto(`/trips/${tripId}/accommodation`);
     await handleNormalUserUi(page);
     const accommodation = page.locator("#hub-logistics");
     await userClick(page, accommodation.getByRole("button", { name: "Rechercher des hébergements", exact: true }), "search accommodation");
@@ -281,7 +281,7 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
 
     await respectLiveProviderCooldown(page, testInfo, "transport generation");
     stage = "transport";
-    await page.goto(`/trips/${tripId}?view=voyage&section=transport`);
+    await page.goto(`/trips/${tripId}/transport`);
     await handleNormalUserUi(page);
     const transports = page.locator("#hub-transports");
     const transportButton = transports.getByRole("button", { name: "Trouver les trajets", exact: true });
@@ -293,7 +293,7 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
 
     await respectLiveProviderCooldown(page, testInfo, "planning generation");
     stage = "planning";
-    await page.goto(`/trips/${tripId}?view=voyage&section=planning`);
+    await page.goto(`/trips/${tripId}/planning`);
     await handleNormalUserUi(page);
     const planning = page.locator("#hub-activities-plan");
     await userClick(page, planning.getByRole("button", { name: "Préparer le planning", exact: true }), "generate planning");
@@ -303,13 +303,13 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     await page.reload();
     await handleNormalUserUi(page);
     await expect(page.locator("#hub-activities-plan").getByRole("heading", { name: /Jour 1/ }).first()).toBeVisible();
-    await page.goto(`/trips/${tripId}?view=voyage&section=destination`);
+    await page.goto(`/trips/${tripId}/destination`);
     await handleNormalUserUi(page);
     await expect(page.locator("#hub-destination").getByText(/Destination validée/).first()).toBeVisible();
-    await page.goto(`/trips/${tripId}?view=voyage&section=accommodation`);
+    await page.goto(`/trips/${tripId}/accommodation`);
     await handleNormalUserUi(page);
     await expect(page.locator("#hub-logistics").getByRole("button", { name: /^Mon vote ·/ }).first()).toBeVisible();
-    await page.goto(`/trips/${tripId}?view=voyage&section=transport`);
+    await page.goto(`/trips/${tripId}/transport`);
     await handleNormalUserUi(page);
     await expect(page.locator("#hub-transports").getByRole("button", { name: "Mon trajet", exact: true }).first()).toBeVisible();
 

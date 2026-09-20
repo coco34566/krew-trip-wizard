@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -213,6 +213,19 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
     view: (search.view as string) || "todo",
     section: (search.section as string) || undefined,
   }),
+  beforeLoad: ({ params, search }) => {
+    switch (search.section) {
+      case "dates": throw redirect({ to: "/trips/$tripId/dates", params: { tripId: params.tripId }, replace: true });
+      case "profile": throw redirect({ to: "/trips/$tripId/profile", params: { tripId: params.tripId }, replace: true });
+      case "destination": throw redirect({ to: "/trips/$tripId/destination", params: { tripId: params.tripId }, replace: true });
+      case "accommodation": throw redirect({ to: "/trips/$tripId/accommodation", params: { tripId: params.tripId }, replace: true });
+      case "transport": throw redirect({ to: "/trips/$tripId/transport", params: { tripId: params.tripId }, replace: true });
+      case "planning": throw redirect({ to: "/trips/$tripId/planning", params: { tripId: params.tripId }, replace: true });
+      case "tasks": throw redirect({ to: "/trips/$tripId/tasks", params: { tripId: params.tripId }, replace: true });
+      case "packing": throw redirect({ to: "/trips/$tripId/packing", params: { tripId: params.tripId }, replace: true });
+      default: return;
+    }
+  },
   head: () => ({
     meta: [
       { title: "Voyage — KREW" },
@@ -1780,7 +1793,7 @@ function TripDetail() {
                 iconName: "calendar",
                 status: getStepStatus("dates", datesReady),
                 category: "prepare",
-                href: `/trips/${tripId}?view=voyage&section=dates`,
+                href: `/trips/${tripId}/dates`,
               },
               {
                 id: "profile",
@@ -1793,7 +1806,7 @@ function TripDetail() {
                 iconName: "profile",
                 status: getStepStatus("profile", profileDone),
                 category: "prepare",
-                href: isStepAvailable("profile") ? `/trips/${tripId}?view=voyage&section=profile` : null,
+                href: isStepAvailable("profile") ? `/trips/${tripId}/profile` : null,
               },
               {
                 id: "destination",
@@ -1802,7 +1815,7 @@ function TripDetail() {
                 iconName: "destination",
                 status: getStepStatus("destination", destDone),
                 category: "prepare",
-                href: isStepAvailable("destination") ? `/trips/${tripId}?view=voyage&section=destination` : null,
+                href: isStepAvailable("destination") ? `/trips/${tripId}/destination` : null,
               },
               {
                 id: "accommodation",
@@ -1811,7 +1824,7 @@ function TripDetail() {
                 iconName: "accommodation",
                 status: getStepStatus("accommodation", hotelDone),
                 category: "prepare",
-                href: isStepAvailable("accommodation") ? `/trips/${tripId}?view=voyage&section=accommodation` : null,
+                href: isStepAvailable("accommodation") ? `/trips/${tripId}/accommodation` : null,
               },
               {
                 id: "transport",
@@ -1820,7 +1833,7 @@ function TripDetail() {
                 iconName: "transport",
                 status: getStepStatus("transport", transportDone),
                 category: "prepare",
-                href: isStepAvailable("transport") ? `/trips/${tripId}?view=voyage&section=transport` : null,
+                href: isStepAvailable("transport") ? `/trips/${tripId}/transport` : null,
               },
               {
                 id: "planning",
@@ -1829,7 +1842,7 @@ function TripDetail() {
                 iconName: "planning",
                 status: getStepStatus("planning", planDone),
                 category: "organisation",
-                href: isStepAvailable("planning") ? `/trips/${tripId}?view=voyage&section=planning` : null,
+                href: isStepAvailable("planning") ? `/trips/${tripId}/planning` : null,
               },
               {
                 id: "tasks",
@@ -1838,7 +1851,7 @@ function TripDetail() {
                 iconName: "tasks",
                 status: getStepStatus("tasks", Boolean(tasksData?.length && planDone)),
                 category: "organisation",
-                href: isStepAvailable("tasks") ? `/trips/${tripId}?view=voyage&section=tasks` : null,
+                href: isStepAvailable("tasks") ? `/trips/${tripId}/tasks` : null,
               },
               {
                 id: "packing",
@@ -1847,7 +1860,7 @@ function TripDetail() {
                 iconName: "packing",
                 status: getStepStatus("packing", false),
                 category: "organisation",
-                href: isStepAvailable("packing") ? `/trips/${tripId}?view=voyage&section=packing` : null,
+                href: isStepAvailable("packing") ? `/trips/${tripId}/packing` : null,
               },
             );
 
@@ -2236,7 +2249,7 @@ function TripDetail() {
             </p>
             <div>
               <Button asChild className="rounded-xl font-medium h-11 text-sm sm:text-base">
-                <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "destination" }}>
+                <Link to="/trips/$tripId/destination" params={{ tripId }}>
                   {data.isOwner ? "Choisir la destination" : "Voir la destination"} <KrewMark type="arrow-right" tone="cream" size="sm" className="size-4 ml-1.5" />
                 </Link>
               </Button>
@@ -2282,7 +2295,7 @@ function TripDetail() {
               Choisis d’abord le Profil du voyage avant de chercher des destinations.
             </p>
             <Button asChild className="rounded-xl font-medium">
-              <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "profile" }}>
+              <Link to="/trips/$tripId/profile" params={{ tripId }}>
                 Choisir le Profil du voyage
               </Link>
             </Button>
@@ -2507,7 +2520,7 @@ function TripDetail() {
         {destinationSelected ? (
           <div className="pt-4 border-t border-border/40 flex justify-end">
             <Button asChild className="rounded-xl font-medium h-11 text-sm sm:text-base">
-              <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "accommodation" }}>
+              <Link to="/trips/$tripId/accommodation" params={{ tripId }}>
                 Choisir l&apos;hébergement <KrewMark type="arrow-right" tone="cream" size="sm" className="size-4 ml-1.5" />
               </Link>
             </Button>
@@ -2757,7 +2770,7 @@ function TripDetail() {
 
                 <div className="pt-1">
                   <Button asChild size="sm" className="rounded-xl font-medium text-xs">
-                    <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "transport" }}>
+                    <Link to="/trips/$tripId/transport" params={{ tripId }}>
                       Voir le transport <KrewMark type="arrow-right" tone="cream" size="sm" className="size-3.5 ml-1" />
                     </Link>
                   </Button>
@@ -2993,7 +3006,7 @@ function TripDetail() {
             ) : null}
             {(trip as any).group_logistics?.transports?.length ? (
               <Button asChild variant="ghost" className="w-full sm:w-auto">
-                <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "planning" }}>
+                <Link to="/trips/$tripId/planning" params={{ tripId }}>
                   Voir le planning <KrewMark type="arrow-right" tone="plum" size="sm" className="ml-1 size-4" />
                 </Link>
               </Button>
@@ -3220,9 +3233,8 @@ function TripDetail() {
                   </div>
                   <Button asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
                     <Link
-                      to="/trips/$tripId"
+                      to="/trips/$tripId/tasks"
                       params={{ tripId }}
-                      search={{ view: "voyage", section: "tasks" }}
                     >
                       <KrewIcon name="tasks" size="sm" className="size-3.5" />
                       Répartir les tâches

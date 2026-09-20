@@ -38,8 +38,8 @@ describe("profile section navigation and gating end-to-end", () => {
 
     // 2. Build URL
     const tripId = "trip-allowed-123";
-    const href = profileAvailable ? `/trips/${tripId}?view=voyage&section=profile` : null;
-    expect(href).toBe(`/trips/trip-allowed-123?view=voyage&section=profile`);
+    const href = profileAvailable ? `/trips/${tripId}/profile` : null;
+    expect(href).toBe(`/trips/trip-allowed-123/profile`);
 
     // 3. Verify concepts rendering logic
     const mockProfile = {
@@ -73,7 +73,7 @@ describe("profile section navigation and gating end-to-end", () => {
     expect(profileAvailable).toBe(false);
 
     const tripId = "trip-locked-456";
-    const href = profileAvailable ? `/trips/${tripId}?view=voyage&section=profile` : null;
+    const href = profileAvailable ? `/trips/${tripId}/profile` : null;
     expect(href).toBe(null);
   });
 });
