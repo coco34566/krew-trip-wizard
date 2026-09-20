@@ -10,7 +10,6 @@ import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 export function TripHubMembersSection({
   data,
   trip,
-  tripId,
   participants,
   progress,
   logistics,
@@ -24,7 +23,6 @@ export function TripHubMembersSection({
 }: {
   data: any;
   trip: any;
-  tripId: string;
   participants: any[];
   progress: any;
   logistics: any;
