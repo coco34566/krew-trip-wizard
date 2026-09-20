@@ -532,7 +532,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
           id: `dest-${i + 1}`,
           name: c.name,
           country: c.country,
-          distance_from_paris_km: 500,
+          distance_from_paris_km: c.name === "TooLong" ? 1000 : 500,
           avg_daily_cost: 80,
           best_months: [6, 7, 8],
           score_fete: 0.5,
