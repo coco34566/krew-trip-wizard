@@ -611,7 +611,7 @@ export function TripHubDashboard({
           ) : null}
         </div>
 
-        <div className={liveMode ? "h-4" : "h-4"} />
+        <div className="h-4" />
       </header>
 
       {liveMode ? (
