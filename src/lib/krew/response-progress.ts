@@ -10,7 +10,7 @@ export type ResponseProgressInput = {
   starUserId?: string | null;
   starMode?: "secret" | "participant" | null;
   participants: ResponseProgressParticipant[];
-  preferenceUserIds: Array<string | null | undefined>;
+  preferenceRows: Array<{ user_id?: string | null; submitted_at?: string | null }>;
   availabilityUserIds: Array<string | null | undefined>;
   secretStarHasPreferences?: boolean;
   secretStarHasAvailability?: boolean;
@@ -32,18 +32,7 @@ export function isInactiveResponseParticipant(status: unknown) {
 }
 
 export function hasSecretStarPreferences(starPrefs: any): boolean {
-  if (!starPrefs) return false;
-  return Boolean(
-    (Array.isArray(starPrefs.wanted_activities) && starPrefs.wanted_activities.length > 0) ||
-      (Array.isArray(starPrefs.deal_breakers) && starPrefs.deal_breakers.length > 0) ||
-      (Array.isArray(starPrefs.ambiances) && starPrefs.ambiances.length > 0) ||
-      starPrefs.notes ||
-      starPrefs.desired_destination ||
-      (Array.isArray(starPrefs.excluded_destinations) && starPrefs.excluded_destinations.length > 0) ||
-      starPrefs.wanted_env_type ||
-      starPrefs.local_mobility ||
-      starPrefs.accommodation_role,
-  );
+  return Boolean(starPrefs?.submitted_at);
 }
 
 export function hasSecretStarAvailability(starPrefs: any): boolean {
@@ -88,7 +77,10 @@ export function deriveResponseProgress(input: ResponseProgressInput): ResponsePr
   }
 
   const preferenceAnswers = new Set(
-    input.preferenceUserIds.filter((id): id is string => Boolean(id) && expectedUserIds.has(id as string)),
+    input.preferenceRows
+      .filter((row) => Boolean(row.submitted_at))
+      .map((row) => row.user_id)
+      .filter((id): id is string => Boolean(id) && expectedUserIds.has(id as string)),
   );
   const availabilityAnswers = new Set(
     input.availabilityUserIds.filter((id): id is string => Boolean(id) && expectedUserIds.has(id as string)),

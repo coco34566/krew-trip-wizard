@@ -26,8 +26,8 @@ export function getDashboardResponseState(input: {
   return {
     state: "ready",
     preferencesExpected,
-    preferencesAnswered: input.datesLocked ? preferencesExpected : rawPreferencesAnswered,
+    preferencesAnswered: rawPreferencesAnswered,
     availabilityExpected,
-    availabilityAnswered: input.datesLocked ? availabilityExpected : rawAvailabilityAnswered,
+    availabilityAnswered: rawAvailabilityAnswered,
   };
 }

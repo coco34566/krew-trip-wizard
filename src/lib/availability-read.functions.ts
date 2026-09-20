@@ -24,7 +24,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
     supabase.from("trip_preferences").select("duration_nights").eq("trip_id", tripId).maybeSingle(),
     supabase
       .from("trip_participant_preferences")
-      .select("user_id")
+      .select("user_id, submitted_at")
       .eq("trip_id", tripId),
     supabase.from("trip_star_preferences").select("*").eq("trip_id", tripId).maybeSingle(),
   ]);
@@ -53,7 +53,10 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
     starUserId: trip.data.star_user_id,
     starMode,
     participants: rawParticipants,
-    preferenceUserIds: (preferenceRows.error ? [] : preferenceRows.data ?? []).map((row: any) => row.user_id),
+    preferenceRows: (preferenceRows.error ? [] : preferenceRows.data ?? []).map((row: any) => ({
+      user_id: row.user_id,
+      submitted_at: row.submitted_at,
+    })),
     availabilityUserIds: (rows.error ? [] : rows.data ?? []).map((row: any) => row.user_id),
     secretStarHasPreferences: hasSecretStarPreferences(starPrefs),
     secretStarHasAvailability: hasSecretStarAvailability(starPrefs),

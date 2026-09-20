@@ -13,7 +13,7 @@ function progress(overrides: Partial<Parameters<typeof deriveResponseProgress>[0
     starUserId: null,
     starMode: "participant",
     participants: [],
-    preferenceUserIds: [],
+    preferenceRows: [],
     availabilityUserIds: [],
     ...overrides,
   });
@@ -47,10 +47,24 @@ describe("deriveResponseProgress", () => {
     expect(result.availabilityExpected).toBe(2);
   });
 
+  it("does not count a preference row until it is submitted", () => {
+    const result = progress({
+      participants: [{ user_id: user2, status: "accepte" }],
+      preferenceRows: [
+        { user_id: ownerId, submitted_at: "2026-09-20T09:00:00Z" },
+        { user_id: user2, submitted_at: null },
+      ],
+      availabilityUserIds: [ownerId, user2],
+    });
+
+    expect(result.preferencesAnswered).toBe(1);
+    expect(result.preferencesMissing).toBe(1);
+  });
+
   it("keeps preference and availability numerators independent", () => {
     const result = progress({
       participants: [{ user_id: user2, status: "accepte" }],
-      preferenceUserIds: [ownerId, user2],
+      preferenceRows: [{ user_id: ownerId, submitted_at: "2026-09-20T09:00:00Z" }, { user_id: user2, submitted_at: "2026-09-20T09:00:00Z" }],
       availabilityUserIds: [ownerId],
     });
 
@@ -66,7 +80,7 @@ describe("deriveResponseProgress", () => {
       starMode: "secret",
       secretStarHasPreferences: true,
       secretStarHasAvailability: true,
-      preferenceUserIds: [ownerId],
+      preferenceRows: [{ user_id: ownerId, submitted_at: "2026-09-20T09:00:00Z" }],
       availabilityUserIds: [ownerId],
     });
 
@@ -86,7 +100,7 @@ describe("deriveResponseProgress", () => {
         { user_id: user2, status: "accepte" },
         { user_id: user2, status: "accepte" },
       ],
-      preferenceUserIds: [ownerId, user2, user2],
+      preferenceRows: [{ user_id: ownerId, submitted_at: "2026-09-20T09:00:00Z" }, { user_id: user2, submitted_at: "2026-09-20T09:00:00Z" }, { user_id: user2, submitted_at: "2026-09-20T09:00:00Z" }],
       availabilityUserIds: [ownerId, user2],
     });
 
@@ -102,7 +116,7 @@ describe("deriveResponseProgress", () => {
       starMode: "secret",
       secretStarHasPreferences: true,
       secretStarHasAvailability: true,
-      preferenceUserIds: [ownerId],
+      preferenceRows: [{ user_id: ownerId, submitted_at: "2026-09-20T09:00:00Z" }],
       availabilityUserIds: [ownerId],
     });
 
@@ -118,7 +132,7 @@ describe("deriveResponseProgress", () => {
       starMode: "secret",
       secretStarHasPreferences: true,
       secretStarHasAvailability: false,
-      preferenceUserIds: [ownerId],
+      preferenceRows: [{ user_id: ownerId, submitted_at: "2026-09-20T09:00:00Z" }],
       availabilityUserIds: [ownerId],
     });
 
@@ -132,7 +146,7 @@ describe("deriveResponseProgress", () => {
       starMode: "secret",
       secretStarHasPreferences: false,
       secretStarHasAvailability: true,
-      preferenceUserIds: [ownerId],
+      preferenceRows: [{ user_id: ownerId, submitted_at: "2026-09-20T09:00:00Z" }],
       availabilityUserIds: [ownerId],
     });
 
@@ -146,7 +160,7 @@ describe("deriveResponseProgress", () => {
         { user_id: null, status: "à inviter" },
         { user_id: null, status: "à inviter" },
       ],
-      preferenceUserIds: [ownerId],
+      preferenceRows: [{ user_id: ownerId, submitted_at: "2026-09-20T09:00:00Z" }],
       availabilityUserIds: [ownerId],
     });
 
@@ -162,7 +176,7 @@ describe("deriveResponseProgress", () => {
         { user_id: user2, status: "absent" },
         { user_id: user3, status: "refuse" },
       ],
-      preferenceUserIds: [ownerId, user2, user3],
+      preferenceRows: [{ user_id: ownerId, submitted_at: "2026-09-20T09:00:00Z" }, { user_id: user2, submitted_at: "2026-09-20T09:00:00Z" }, { user_id: user3, submitted_at: "2026-09-20T09:00:00Z" }],
       availabilityUserIds: [ownerId, user2, user3],
     });
 

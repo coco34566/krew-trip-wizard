@@ -3,6 +3,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { aggregateParticipantPreferences } from "@/lib/krew/trip-service";
 import { isTripAdmin } from "@/lib/krew/engine";
+import {
+  deriveResponseProgress,
+  hasSecretStarAvailability,
+  hasSecretStarPreferences,
+} from "@/lib/krew/response-progress";
 import { normalizeStayConcepts } from "./shared";
 
 function computeJourneyStage(input: {
@@ -117,7 +122,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
           .eq("is_selected", true),
         supabase
           .from("trips")
-          .select("id, dates_locked, group_itinerary, start_date, participants_count, celebrated_person, has_star, star_user_id, stay_profile_validated_at, stay_concepts_selected")
+          .select("id, dates_locked, group_itinerary, start_date, participants_count, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_logistics, stay_profile_validated_at, stay_concepts_selected")
           .in("id", uniqueIds),
         supabase
           .from("trip_participants")
@@ -177,25 +182,16 @@ export const listMyTrips = createServerFn({ method: "GET" })
         );
 
         const prefRows = rawPrefs.filter((p: any) => p.trip_id === tid);
-        const prefSet = new Set(prefRows.map((p: any) => p.user_id).filter(Boolean));
+        const prefSet = new Set(
+          prefRows.filter((p: any) => Boolean(p.submitted_at)).map((p: any) => p.user_id).filter(Boolean),
+        );
 
         const availRows = rawAvail.filter((a: any) => a.trip_id === tid);
         const availSet = new Set(availRows.map((a: any) => a.user_id).filter(Boolean));
 
         const starPref = rawStarPrefs.find((sp: any) => sp.trip_id === tid);
-        const starHasPrefs = Boolean(
-          starPref &&
-            ((starPref.wanted_activities && starPref.wanted_activities.length > 0) ||
-              (starPref.ambiances && starPref.ambiances.length > 0) ||
-              starPref.wanted_env_type ||
-              starPref.desired_destination ||
-              starPref.submitted_at),
-        );
-        const starHasAvail = Boolean(
-          starPref &&
-            ((starPref.available_dates && starPref.available_dates.length > 0) ||
-              (starPref.blocked_dates && starPref.blocked_dates.length > 0)),
-        );
+        const starHasPrefs = hasSecretStarPreferences(starPref);
+        const starHasAvail = hasSecretStarAvailability(starPref);
 
         const starParticipant = starUserId
           ? activeParticipants.find((p: any) => p.user_id === starUserId) || null
@@ -226,15 +222,34 @@ export const listMyTrips = createServerFn({ method: "GET" })
           });
         }
 
-        const expected = Math.max(Number(tripData?.participants_count) || 0, membersList.length, 1);
-        const availabilityAnswered = membersList.filter((m) => m.availabilityDone).length;
-        const preferencesAnswered = membersList.filter((m) => m.preferencesDone).length;
+        const starMode = (tripData?.group_logistics?.star_mode ?? "secret") as "secret" | "participant";
+        const progress = deriveResponseProgress({
+          ownerId: tripData?.owner_id,
+          coOrganizerId: tripData?.co_organizer_id,
+          hasStar: Boolean(tripData?.has_star || celebratedPerson || starUserId),
+          starUserId,
+          starMode,
+          participants: activeParticipants,
+          preferenceRows: prefRows.map((row: any) => ({
+            user_id: row.user_id,
+            submitted_at: row.submitted_at,
+          })),
+          availabilityUserIds: availRows.map((row: any) => row.user_id),
+          secretStarHasPreferences: starHasPrefs,
+          secretStarHasAvailability: starHasAvail,
+        });
+        const expected = Math.max(
+          Number(tripData?.participants_count) || 0,
+          progress.preferencesExpected,
+          progress.availabilityExpected,
+          1,
+        );
 
         teamSummaryByTrip[tid] = {
           total: expected,
           identifiedCount: membersList.length,
-          availabilityAnswered,
-          preferencesAnswered,
+          availabilityAnswered: progress.availabilityAnswered,
+          preferencesAnswered: progress.preferencesAnswered,
           members: membersList,
         };
       }

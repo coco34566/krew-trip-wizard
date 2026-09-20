@@ -35,7 +35,7 @@ describe("dashboard response state", () => {
     });
   });
 
-  it("closes availability and preferences coherently once dates are locked", () => {
+  it("keeps real response counts once dates are locked", () => {
     expect(
       getDashboardResponseState({
         progressReady: true,
@@ -48,9 +48,9 @@ describe("dashboard response state", () => {
     ).toEqual({
       state: "ready",
       preferencesExpected: 2,
-      preferencesAnswered: 2,
+      preferencesAnswered: 1,
       availabilityExpected: 2,
-      availabilityAnswered: 2,
+      availabilityAnswered: 1,
     });
   });
 });
