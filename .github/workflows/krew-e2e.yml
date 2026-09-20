@@ -293,5 +293,6 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            canonical-e2e.log
           if-no-files-found: ignore
           retention-days: 7
