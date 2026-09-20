@@ -1,5 +1,6 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { handleNormalUserUi, signIn, userClick } from "./helpers";
+import { TEST_TRIP_PREFIXES, testTripName } from "./test-trip-constants";
 
 const VIEWPORTS = [
   { name: "narrow-mobile", width: 320, height: 568, screenshot: false },
@@ -41,7 +42,7 @@ async function createVisualAuditTrip(page: Page) {
   await page.goto("/trips/new");
   await handleNormalUserUi(page);
   await expect(page.locator("#name")).toBeVisible();
-  await page.locator("#name").fill(`VISUAL-AUDIT-${Date.now()}`);
+  await page.locator("#name").fill(testTripName(TEST_TRIP_PREFIXES[2]));
   await page.locator("#orga").fill("QA");
   await userClick(page, page.getByRole("button", { name: /25-35 ans/ }), "choose visual-audit age range");
   await page.locator("#n").fill("2");

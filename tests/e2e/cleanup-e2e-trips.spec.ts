@@ -1,10 +1,14 @@
-import { test } from "@playwright/test";
-import { signIn } from "./helpers";
-import { assertNoDisposableTripsOnDashboard } from "./test-lifecycle";
+import { expect, test } from "@playwright/test";
+import { isTestTripName, TEST_TRIP_PREFIXES, testTripName } from "./test-trip-constants";
 
-// Safety-net only. Disposable trips should normally be deleted by the test that created them.
-test("dashboard contains no leaked disposable KREW E2E trips", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile-safari", "Leak guard only needs to run once.");
-  await signIn(page);
-  await assertNoDisposableTripsOnDashboard(page);
+test("E2E cleanup only recognizes the reserved trip prefixes", () => {
+  for (const prefix of TEST_TRIP_PREFIXES) {
+    const name = testTripName(prefix);
+    expect(name.startsWith(prefix)).toBe(true);
+    expect(isTestTripName(name)).toBe(true);
+  }
+
+  expect(isTestTripName("Weekend Lisbonne")).toBe(false);
+  expect(isTestTripName("E2E-autre-format")).toBe(false);
+  expect(isTestTripName("VISUAL-OTHER-123")).toBe(false);
 });

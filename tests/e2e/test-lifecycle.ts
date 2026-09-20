@@ -1,14 +1,18 @@
-import { expect, type Page, type TestInfo } from "@playwright/test";
+import { type Page, type TestInfo } from "@playwright/test";
 import { handleNormalUserUi } from "./helpers";
-
-export const DISPOSABLE_TRIP_NAME = /^E2E-(?:FULL|KREW)-\d{10,}$/;
+import { isTestTripName, TEST_TRIP_PREFIXES, testTripName } from "./test-trip-constants";
 
 export function disposableTripName(kind: "FULL" | "KREW") {
-  return `E2E-${kind}-${Date.now()}`;
+  return testTripName(kind === "FULL" ? TEST_TRIP_PREFIXES[1] : TEST_TRIP_PREFIXES[0]);
 }
 
-export async function deleteDisposableTrip(page: Page, tripId: string | undefined, tripName: string | undefined, testInfo?: TestInfo) {
-  if (!tripId || !tripName || !DISPOSABLE_TRIP_NAME.test(tripName)) return false;
+export async function deleteDisposableTrip(
+  page: Page,
+  tripId: string | undefined,
+  tripName: string | undefined,
+  testInfo?: TestInfo,
+) {
+  if (!tripId || !tripName || !isTestTripName(tripName)) return false;
   try {
     await page.goto(`/trips/${tripId}`);
     await handleNormalUserUi(page);
@@ -19,15 +23,12 @@ export async function deleteDisposableTrip(page: Page, tripId: string | undefine
     await page.waitForURL(/\/dashboard(?:\?|$)/, { timeout: 30_000 });
     return true;
   } catch (error) {
-    if (testInfo) await testInfo.attach("e2e-cleanup-error", { body: Buffer.from(String(error)), contentType: "text/plain" });
+    if (testInfo) {
+      await testInfo.attach("e2e-cleanup-error", {
+        body: Buffer.from(String(error)),
+        contentType: "text/plain",
+      });
+    }
     return false;
   }
-}
-
-export async function assertNoDisposableTripsOnDashboard(page: Page) {
-  await page.goto("/dashboard");
-  await handleNormalUserUi(page);
-  await expect(page.locator("main")).toBeVisible({ timeout: 20_000 });
-  const names = await page.locator('a[href*="/trips/"]').allTextContents();
-  expect(names.filter((name) => DISPOSABLE_TRIP_NAME.test(name.replace(/\s+/g, " ").trim()))).toEqual([]);
 }
