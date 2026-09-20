@@ -66,7 +66,8 @@ export const validateStayProfile = createServerFn({ method: "POST" })
       );
     }
     const storedCalculated = normalizeStayConcepts(((trip.data as any).stay_concepts_calculated ?? []));
-    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const aggregated = await aggregateParticipantPreferences(supabaseAdmin, data.tripId);
     const calculated = storedCalculated.length ? storedCalculated : normalizeStayConcepts((aggregated.stayConcepts ?? []).slice(0, 3));
     const selected = selectValidatedStayConcepts(calculated, data.selectedConceptIds);
     const { error } = await supabase
@@ -125,7 +126,8 @@ export const generateRecommendations = createServerFn({ method: "POST" })
       });
     }
 
-    return generateRecommendationsForTrip(supabase, data.tripId, {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    return generateRecommendationsForTrip(supabaseAdmin, data.tripId, {
       // `force` n'est accepté qu'en usage test explicite (ALLOW_FORCE_GENERATION),
       // jamais comme comportement par défaut en production.
       force: data.force === true && process.env["ALLOW_FORCE_GENERATION"] === "true",
@@ -136,8 +138,19 @@ export const getGenerationReadiness = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    const { assessGenerationReadiness } = await import("@/lib/krew/trip-service");
-    return assessGenerationReadiness(context.supabase, data.tripId);
+    const access = await context.supabase
+      .from("trips")
+      .select("id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (access.error) throw access.error;
+    if (!access.data) throw new Error("403 Forbidden");
+
+    const [{ assessGenerationReadiness }, { supabaseAdmin }] = await Promise.all([
+      import("@/lib/krew/trip-service"),
+      import("@/integrations/supabase/client.server"),
+    ]);
+    return assessGenerationReadiness(supabaseAdmin, data.tripId);
   });
 
 export const toggleVote = createServerFn({ method: "POST" })
