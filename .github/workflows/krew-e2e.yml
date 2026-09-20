@@ -190,6 +190,10 @@ jobs:
           sleep 15
           npm run test:e2e:smoke
 
+      - name: Run canonical hub navigation and redirect E2E
+        if: github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        run: npx playwright test hub-canonical-navigation.spec.ts legacy-hub-section-redirects.spec.ts --project=mobile-safari
+
       - name: Run advisory visual audit on PR
         if: always() && github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
         continue-on-error: true

@@ -35,6 +35,30 @@ jobs:
           set -o pipefail
           npx tsc --noEmit 2>&1 | tee tsc-noemit.log
 
+      - name: Validate migrated hub with noUnusedLocals
+        run: |
+          set +e
+          npx tsc --noEmit --noUnusedLocals --noUnusedParameters --pretty false > hub-no-unused.log 2>&1
+          code=$?
+          cat hub-no-unused.log
+          if grep -E 'src/(components/krew/TripHub(FinalRecap|JourneyView|MembersSection)\.tsx|hooks/useTripHub(Data|Actions)\.ts|routes/_authenticated/trips\.\$tripId\.index\.tsx|routes/_authenticated/trips\.\$tripId\.planning\.tsx)' hub-no-unused.log; then
+            echo "::error::Migrated Trip Hub files still have TypeScript/noUnused errors"
+            exit 1
+          fi
+          echo "Global noUnused exit code: $code; repository-wide pre-existing debt is reported above."
+
+      - name: Validate migrated hub with Knip
+        run: |
+          set +e
+          npx --yes knip > hub-knip.log 2>&1
+          code=$?
+          cat hub-knip.log
+          if grep -E 'src/(components/krew/TripHub(FinalRecap|JourneyView|MembersSection)\.tsx|hooks/useTripHub(Data|Actions)\.ts)' hub-knip.log; then
+            echo "::error::Knip reports a newly extracted Trip Hub module as unused"
+            exit 1
+          fi
+          echo "Global Knip exit code: $code; repository-wide pre-existing findings are reported above."
+
       - name: Run unit tests
         run: npm test
 

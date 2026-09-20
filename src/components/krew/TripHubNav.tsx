@@ -55,12 +55,12 @@ export function TripHubNav({
     const remainsAccessibleWhenSoon = step.id === "questionnaire";
     if (step.status === "soon" && !remainsAccessibleWhenSoon) return null;
     if (step.id === "invite") return `/trips/${tripId}/invite`;
-    if (step.id === "dates") return `/trips/${tripId}?view=voyage&section=dates`;
-    if (step.id === "profile") return `/trips/${tripId}?view=voyage&section=profile`;
-    if (step.id === "destination") return `/trips/${tripId}?view=voyage&section=destination`;
-    if (step.id === "hotels") return `/trips/${tripId}?view=voyage&section=accommodation`;
-    if (step.id === "transport") return `/trips/${tripId}?view=voyage&section=transport`;
-    if (step.id === "organize") return `/trips/${tripId}?view=voyage&section=planning`;
+    if (step.id === "dates") return `/trips/${tripId}/dates`;
+    if (step.id === "profile") return `/trips/${tripId}/profile`;
+    if (step.id === "destination") return `/trips/${tripId}/destination`;
+    if (step.id === "hotels") return `/trips/${tripId}/accommodation`;
+    if (step.id === "transport") return `/trips/${tripId}/transport`;
+    if (step.id === "organize") return `/trips/${tripId}/planning`;
     const routeTo = STEP_ROUTE[step.id];
     return routeTo ? routeTo.replace("$tripId", tripId) : null;
   }
