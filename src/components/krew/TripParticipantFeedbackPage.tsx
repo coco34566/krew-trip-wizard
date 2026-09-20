@@ -8,8 +8,6 @@ import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getOrganizerQuestionnaireFeedback } from "@/lib/organizer-questionnaire-feedback.functions";
 
-type FeedbackData = Awaited<ReturnType<ReturnType<typeof useServerFn<typeof getOrganizerQuestionnaireFeedback>>>>;
-
 const listText = (values: string[] | null | undefined) =>
   values?.length ? values.join(" · ") : null;
 
@@ -181,7 +179,6 @@ export function TripParticipantFeedbackPage({ tripId }: { tripId: string }) {
         search={{ view: "todo" }}
         className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
       >
-        <KrewIcon name="back" tone="muted" size="sm" className="size-4" />
         Retour au groupe
       </Link>
 
