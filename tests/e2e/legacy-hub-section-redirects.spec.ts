@@ -12,9 +12,19 @@ const LEGACY_SECTIONS = [
   ["packing", "packing"],
 ] as const;
 
-async function firstTripId(page: Page) {
-  await page.goto("/dashboard");
+async function openDashboard(page: Page) {
+  const currentPath = new URL(page.url()).pathname;
+  if (currentPath !== "/dashboard") {
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+  } else {
+    await page.waitForLoadState("domcontentloaded");
+  }
   await handleNormalUserUi(page);
+  await expect(page.locator("main")).toBeVisible({ timeout: 20_000 });
+}
+
+async function firstTripId(page: Page) {
+  await openDashboard(page);
   const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) =>
     links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""),
   );
