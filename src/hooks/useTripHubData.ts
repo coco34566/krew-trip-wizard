@@ -14,6 +14,32 @@ import {
   getTripDetail,
 } from "@/lib/trips.functions";
 import type { StayConcept } from "@/lib/krew/stay-profiles";
+import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
+
+export type TripHubRecommendation = {
+  id: string;
+  score: number;
+  rationale: string | null;
+  match_reasons: string[] | null;
+  is_selected: boolean;
+  itinerary: ItineraryDay[] | null;
+  budget: BudgetBreakdown | null;
+  activity_ids: string[] | null;
+  destinations: {
+    name: string;
+    country: string;
+    description: string | null;
+    image_url: string | null;
+    rating: number;
+  } | null;
+  accommodations: {
+    name: string;
+    type: string;
+    rating: number;
+    price_per_night_per_person: number;
+    distance_center_km: number;
+  } | null;
+};
 
 export function useTripHubData(tripId: string) {
   const fetchDetail = useServerFn(getTripDetail);
