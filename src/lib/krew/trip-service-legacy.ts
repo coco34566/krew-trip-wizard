@@ -700,6 +700,12 @@ export async function aggregateParticipantPreferences(
           wanted_env_type: starData.wanted_env_type ?? existing.wanted_env_type,
           local_mobility: starData.local_mobility ?? existing.local_mobility,
           accommodation_role: starData.accommodation_role ?? existing.accommodation_role,
+          transport_mode_accepted:
+            starData.transport_mode_accepted?.length
+              ? starData.transport_mode_accepted
+              : existing.transport_mode_accepted,
+          max_travel_duration_hours:
+            starData.max_travel_duration_hours ?? existing.max_travel_duration_hours,
         };
       } else {
         rows.push({
@@ -726,8 +732,9 @@ export async function aggregateParticipantPreferences(
           mobility_notes: null,
           accessibility_needs: false,
           departure_airport_or_station: starData.departure_airport_or_station ?? null,
-          transport_mode_accepted: ["peu importe"],
-          max_travel_duration_hours: null,
+          transport_mode_accepted:
+            starData.transport_mode_accepted?.length ? starData.transport_mode_accepted : ["peu importe"],
+          max_travel_duration_hours: starData.max_travel_duration_hours ?? null,
           blackout_dates: [],
           wanted_env_type: starData.wanted_env_type ?? null,
           group_age_range: null,
