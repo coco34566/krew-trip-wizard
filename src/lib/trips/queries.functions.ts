@@ -122,7 +122,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
           .eq("is_selected", true),
         supabase
           .from("trips")
-          .select("id, dates_locked, group_itinerary, start_date, participants_count, celebrated_person, has_star, star_user_id, stay_profile_validated_at, stay_concepts_selected")
+          .select("id, dates_locked, group_itinerary, start_date, participants_count, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_logistics, stay_profile_validated_at, stay_concepts_selected")
           .in("id", uniqueIds),
         supabase
           .from("trip_participants")
