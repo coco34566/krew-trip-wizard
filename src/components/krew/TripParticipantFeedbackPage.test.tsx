@@ -8,6 +8,10 @@ vi.mock("@tanstack/react-start", () => ({
   useServerFn: () => fetchFeedback,
 }));
 
+vi.mock("@/lib/organizer-questionnaire-feedback.functions", () => ({
+  getOrganizerQuestionnaireFeedback: vi.fn(),
+}));
+
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: any) => <a href="#">{children}</a>,
   Navigate: () => <div data-testid="redirect" />,
