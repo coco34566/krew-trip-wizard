@@ -300,16 +300,11 @@ export async function getDestinationBriefContext(
       needs_city_center: aggregated.needsAccessibility
         ? true
         : (preferencesRes.data?.needs_city_center ?? true),
-      max_travel_duration_hours: aggregated.maxTravelDurationHours,
-      plane_refused: aggregated.planeRefused,
+      max_travel_duration_hours: null,
+      plane_refused: false,
       blackout_dates: aggregated.blackoutDates,
       group_weather_preference: aggregated.groupWeatherPreference,
-      max_distance_km: aggregated.maxTravelDurationHours
-        ? Math.min(
-            Number(preferencesRes.data?.max_distance_km ?? 2000),
-            Math.round(Number(aggregated.maxTravelDurationHours) * 90),
-          )
-        : (preferencesRes.data?.max_distance_km ?? undefined),
+      max_distance_km: preferencesRes.data?.max_distance_km ?? undefined,
     } as any;
   }
 
@@ -338,18 +333,10 @@ export async function getDestinationBriefContext(
   if (aggregated.needsAccessibility) scoringContext.needsCityCenter = true;
 
   scoringContext.departureOrigins = aggregated.departureOrigins ?? [];
-  scoringContext.planeRefused = Boolean(aggregated.planeRefused);
-  scoringContext.transportModes = aggregated.transportModes ?? [];
-
-  if (aggregated.planeRefused) {
-    scoringContext.maxDistanceKm = Math.min(scoringContext.maxDistanceKm, 900);
-  }
-  if (aggregated.maxTravelDurationHours && Number(aggregated.maxTravelDurationHours) > 0) {
-    scoringContext.maxDistanceKm = Math.min(
-      scoringContext.maxDistanceKm,
-      Math.round(Number(aggregated.maxTravelDurationHours) * 90),
-    );
-  }
+  scoringContext.planeRefused = false;
+  scoringContext.transportModes = [];
+  scoringContext.maxTravelDurationHours = null;
+  scoringContext.travelConstraintsEvaluatedPerParticipant = true;
 
   const primaryDeparture =
     (aggregated.departureOrigins?.[0]?.city as string | undefined) ||
@@ -373,15 +360,15 @@ export async function getDestinationBriefContext(
     })),
     acceptedTransportModes: [
       ...new Set(
-        aggregated.individualPreferences.flatMap(
-          (preference: any) => preference.transportModeAccepted ?? [],
-        ),
+        aggregated.individualPreferences
+          .filter((preference: any) => Boolean(preference.submittedAt))
+          .flatMap((preference: any) => preference.transportModes ?? []),
       ),
     ].filter((mode): mode is string => typeof mode === "string" && mode !== "bus"),
     participants: scoringContext.participants,
     ...(tripRes.data.event_type ? { eventType: tripRes.data.event_type as string } : {}),
-    planeRefused: Boolean((aggregated as any).planeRefused),
-    maxTravelHours: (aggregated as any).maxTravelDurationHours ?? null,
+    planeRefused: false,
+    maxTravelHours: null,
     starWanted: aggregated.starWantedActivities ?? [],
     starDealBreakers: aggregated.starDealBreakers ?? [],
     wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
@@ -402,13 +389,19 @@ export async function getDestinationBriefContext(
     accommodationRole:
       aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ??
       null,
-    relevantIndividualPreferences: aggregated.individualPreferences.map((p: any) => ({
-      activities: p.activityCategories,
-      environment: p.wantedEnvType,
-      mobility: p.localMobility,
-      accommodationRole: p.accommodationRole,
-      isStar: p.isStar,
-    })),
+    relevantIndividualPreferences: aggregated.individualPreferences
+      .filter((p: any) => Boolean(p.submittedAt))
+      .map((p: any) => ({
+        userId: p.userId,
+        departureCity: p.departureCity,
+        transportModes: p.transportModes,
+        maxTravelHours: p.maxTravelHours,
+        activities: p.activityCategories,
+        environment: p.wantedEnvType,
+        mobility: p.localMobility,
+        accommodationRole: p.accommodationRole,
+        isStar: p.isStar,
+      })),
     scoringSignals: {
       desiredDestination: resolvedDestination,
       letKrewDecide,
@@ -420,7 +413,14 @@ export async function getDestinationBriefContext(
         minGroupBudget: scoringContext.minGroupBudget,
         excludedCountries: scoringContext.excludedCountries,
         maxDistanceKm: scoringContext.maxDistanceKm,
-        maxTravelHours: scoringContext.maxTravelDurationHours,
+        participantTravelConstraints: aggregated.individualPreferences
+          .filter((p: any) => Boolean(p.submittedAt))
+          .map((p: any) => ({
+            departureCity: p.departureCity,
+            transportModes: p.transportModes,
+            maxTravelHours: p.maxTravelHours,
+            isStar: p.isStar,
+          })),
       },
       softPreferences: {
         travelPace: scoringContext.travelPace,
