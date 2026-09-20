@@ -6,7 +6,10 @@ describe("safeInternalPath", () => {
   it.each([
     ["/", "/"],
     ["/dashboard", "/dashboard"],
+    ["/a/../dashboard", "/dashboard"],
     ["/trips/abc?section=recap#x", "/trips/abc?section=recap#x"],
+    ["/trips/x?y=//z", "/trips/x?y=//z"],
+    ["/?next=//evil.com", "/?next=//evil.com"],
     ["/join/abc?token=xyz", "/join/abc?token=xyz"],
   ])("accepte %s", (input, expected) => {
     expect(safeInternalPath(input)).toBe(expected);
@@ -22,6 +25,12 @@ describe("safeInternalPath", () => {
     "  //evil.com",
     "https://evil.com",
     "javascript:alert(1)",
+    "/.//evil.com",
+    "/%2e//evil.com",
+    "/%2E//evil.com",
+    "/a/..//evil.com",
+    "/a/%2e%2e//evil.com",
+    String.raw`/./\/evil.com`,
     "",
   ])("rejette %j", (input) => {
     expect(safeInternalPath(input)).toBeNull();

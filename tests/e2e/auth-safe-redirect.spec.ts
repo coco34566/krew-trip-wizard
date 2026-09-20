@@ -5,7 +5,7 @@ test("an authenticated user cannot be redirected off-origin by auth next", async
   await signIn(page);
   const expectedOrigin = new URL(page.url()).origin;
 
-  await page.goto(`/auth?next=${encodeURIComponent("/\\\\evil.com")}`);
+  await page.goto(`/auth?next=${encodeURIComponent("/.//evil.com")}`);
   await page.waitForURL(/\/dashboard(?:\?|$)/);
 
   const current = new URL(page.url());
