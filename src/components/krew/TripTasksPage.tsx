@@ -370,9 +370,9 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
             </div>
             <Button asChild variant="outline" size="sm">
               <Link
-                to="/trips/$tripId"
+                to="/trips/$tripId/transport"
                 params={{ tripId }}
-                search={{ view: "voyage", section: "transport" }}
+                
               >
                 Voir les transports
               </Link>

@@ -52,9 +52,9 @@ export function TransportGroupsSummary({
           </p>
         </div>
         <Link
-          to="/trips/$tripId"
+          to="/trips/$tripId/transport"
           params={{ tripId }}
-          search={{ view: "voyage", section: "transport" }}
+          
           className="text-xs font-semibold text-primary hover:underline"
         >
           Voir tous les trajets

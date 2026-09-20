@@ -194,7 +194,7 @@ function StepRow({ step, tripId, historical }: { step: TimelineStep; tripId: str
     step.id === "preferences"
       ? `/trips/${tripId}/questionnaire`
       : step.id === "profile"
-        ? `/trips/${tripId}?view=voyage&section=profile`
+        ? `/trips/${tripId}/profile`
         : step.id === "memories" && !isUpcoming
           ? `/trips/${tripId}/memories`
           : null;

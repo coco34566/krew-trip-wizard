@@ -506,9 +506,9 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
         {transports.length > 0 ? (
           <Button asChild variant="ghost" className="w-full sm:w-auto">
             <Link
-              to="/trips/$tripId"
+              to="/trips/$tripId/planning"
               params={{ tripId }}
-              search={{ view: "voyage", section: "planning" }}
+              
             >
               Voir le planning <KrewMark type="arrow-right" tone="plum" size="sm" className="ml-1 size-4" />
             </Link>

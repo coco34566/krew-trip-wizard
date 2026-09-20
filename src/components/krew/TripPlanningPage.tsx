@@ -348,9 +348,9 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
             </div>
             <Button asChild variant="outline" size="sm" className="w-full shrink-0 sm:w-auto">
               <Link
-                to="/trips/$tripId"
+                to="/trips/$tripId/tasks"
                 params={{ tripId }}
-                search={{ view: "voyage", section: "tasks" }}
+                
               >
                 <KrewIcon name="tasks" size="sm" className="size-3.5" />
                 {completedTrip ? "Voir les tâches" : isAdmin ? "Répartir les tâches" : "Voir les tâches"}
