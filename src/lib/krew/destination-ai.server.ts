@@ -368,6 +368,7 @@ Ces vérifications appartiennent à l’étape HÉBERGEMENT.
 13. TRANSPORT : PLAUSIBILITÉ, PAS COTATION
 ────────────────────────────
 Les origines et contraintes de transport doivent influencer fortement l’exploration.
+La plausibilité doit aussi tenir compte de la durée réelle du séjour (nombre de nuits) : un trajet lourd peut être acceptable pour un long séjour mais peu pertinent pour un week-end de 2 nuits.
 Respecte notamment :
 - modes refusés ;
 - modes acceptés ;
@@ -388,6 +389,7 @@ avec :
 likely
 uncertain
 unlikely
+N’utilise PAS "likely" comme valeur par défaut. Choisis "likely" seulement si le trajet est réellement crédible depuis cette origine compte tenu des modes plausibles, de la géographie et du nombre de nuits. En cas de doute, utilise "uncertain". Si le trajet est disproportionné ou peu crédible pour cette durée de séjour, utilise "unlikely".
 Une estimation grossière de durée peut uniquement être fournie si le schéma KREW l’exige encore, mais elle doit être comprise comme approximative et ne jamais être présentée comme une donnée fournisseur.
 ────────────────────────────
 14. ACTIVITÉS : SIGNAL DESTINATION UNIQUEMENT
