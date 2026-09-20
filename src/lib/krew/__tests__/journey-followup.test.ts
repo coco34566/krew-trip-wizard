@@ -110,13 +110,13 @@ describe("compléments du parcours E2E", () => {
       questionnaire.indexOf('title="Contraintes et précisions"'),
     );
     expect(transportSection).toContain("localMobility");
-    const hub = readFileSync("src/routes/_authenticated/trips.$tripId.index.tsx", "utf8");
+    const datesPage = readFileSync("src/components/krew/TripDatesPage.tsx", "utf8");
     for (const option of [
       "Apple / calendrier mobile (.ics)",
       "Google Calendar",
       "Outlook",
       "Microsoft 365",
     ])
-      expect(hub).toContain(option);
+      expect(datesPage).toContain(option);
   });
 });
