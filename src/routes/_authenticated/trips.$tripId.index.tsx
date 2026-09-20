@@ -1,46 +1,25 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Trash2, Wallet } from "lucide-react";
-import { toast } from "sonner";
+import { useMemo } from "react";
+import { Trash2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  getTripDetail,
-  getGenerationReadiness,
-  getCostSplit,
-  removeParticipant,
-  cancelTrip,
-  setCoOrganizer,
-  updateTripParticipantsCount,
-} from "@/lib/trips.functions";
-import {
-  getParticipantsProgress,
-  getMyParticipantPreferences,
-  declareMyStatus,
-} from "@/lib/participant-preferences.functions";
-import { formatEuro } from "@/lib/krew/constants";
-import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
-import { PROFILE_LABELS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
-import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
-import { cn } from "@/lib/utils";
-import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
-import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard.entry";
+import { TripHubFinalRecap } from "@/components/krew/TripHubFinalRecap";
+import { TripHubJourneyView } from "@/components/krew/TripHubJourneyView";
+import { TripHubMembersSection } from "@/components/krew/TripHubMembersSection";
 import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
-import { KrewJourneyTimeline } from "@/components/krew/KrewJourneyTimeline.entry";
-import type { TimelineStep } from "@/components/krew/KrewJourneyTimeline";
-import { getTripAvailability } from "@/lib/availability.functions";
-import { getStarPreferences } from "@/lib/star-preferences.functions";
-import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
-import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
+import { useTripHubActions } from "@/hooks/useTripHubActions";
+import { useTripHubData } from "@/hooks/useTripHubData";
+import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
+import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
+import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
+import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
+import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   beforeLoad: ({ params, search }) => {
@@ -66,8 +45,8 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
     }
   },
   validateSearch: (search: Record<string, unknown>) => ({
-    view: (search.view as string) || "todo",
-    section: (search.section as string) || undefined,
+    view: (search["view"] as string) || "todo",
+    section: (search["section"] as string) || undefined,
   }),
   head: () => ({
     meta: [
@@ -118,160 +97,22 @@ function TripDetail() {
   const search = Route.useSearch();
   const currentView = search?.view ?? "todo";
   const currentSection = search?.section;
-  const queryClient = useQueryClient();
-  const fetchDetail = useServerFn(getTripDetail);
-  const removeGuest = useServerFn(removeParticipant);
-  const fetchReadiness = useServerFn(getGenerationReadiness);
-  const setCoOrg = useServerFn(setCoOrganizer);
-  const updateCountFn = useServerFn(updateTripParticipantsCount);
-  const [isEditingCount, setIsEditingCount] = useState(false);
-  const [countInput, setCountInput] = useState<number>(2);
-
-  const updateCountMutation = useMutation({
-    mutationFn: (count: number) =>
-      updateCountFn({ data: { tripId, participantsCount: count } }),
-    onSuccess: () => {
-      setIsEditingCount(false);
-      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-      queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] });
-      queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
-    },
-    onError: (err: any) => {
-      console.error("Impossible de mettre à jour le nombre de participants:", err);
-      toast.error("Impossible de mettre à jour le nombre de participants pour le moment.");
-    },
-  });
-
-  const setCoOrgMutation = useMutation({
-    mutationFn: ({ coOrganizerId }: { coOrganizerId: string | null }) =>
-      setCoOrg({ data: { tripId, coOrganizerId } }),
-    onSuccess: (_, variables) => {
-      if (variables.coOrganizerId) {
-        } else {
-        }
-      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-    },
-    onError: (err) => {
-      console.error(err);
-      toast.error("Impossible de mettre à jour ce rôle pour le moment.");
-    },
-  });
-
-  const { data: readiness } = useQuery({
-    queryKey: ["generation-readiness", tripId],
-    queryFn: () => fetchReadiness({ data: { tripId } }),
-    enabled: Boolean(tripId),
-    retry: false,
-  });
-
-  const { data: tasksData } = useQuery({
-    queryKey: ["trip-tasks", tripId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("trip_tasks" as any)
-        .select(
-          `
-          *,
-          assigned_participant:assigned_participant_id (
-            id,
-            display_name,
-            email,
-            user_id
-          )
-        `,
-        )
-        .eq("trip_id", tripId)
-        .order("day_date", { ascending: true })
-        .order("start_time", { ascending: true });
-      if (error) throw error;
-      return data as any[];
-    },
-    enabled: Boolean(tripId),
-  });
-
-  const fetchProgress = useServerFn(getParticipantsProgress);
-  const fetchSplit = useServerFn(getCostSplit);
-  const fetchAvail = useServerFn(getTripAvailability);
-  const fetchStar = useServerFn(getStarPreferences);
-  const { data: starData } = useQuery({
-    queryKey: ["star-prefs", tripId],
-    queryFn: () => fetchStar({ data: { tripId } }),
-    enabled: Boolean(tripId),
-    retry: false,
-  });
-
-  const { data: availData } = useQuery({
-    queryKey: ["trip-availability", tripId],
-    queryFn: () => fetchAvail({ data: { tripId } }),
-    enabled: Boolean(tripId),
-    retry: false,
-  });
-  const { data: costSplitData } = useQuery({
-    queryKey: ["cost-split", tripId],
-    queryFn: () => fetchSplit({ data: { tripId } }),
-    enabled: Boolean(tripId),
-    retry: false,
-  });
-
-  const queryKey = ["trip", tripId];
-  const { data, isLoading } = useQuery({
+  const {
+    data,
+    isLoading,
+    profile,
+    readiness,
+    tasksData,
+    starData,
+    availData,
+    costSplitData,
+    progress,
+    myPrefsData,
     queryKey,
-    queryFn: () => fetchDetail({ data: { tripId } }),
-  });
-  const profile = data?.profile as
-    | {
-        calculatedConcepts: StayConcept[];
-        selectedConcepts: StayConcept[];
-        validated: boolean;
-        legacyBypass: boolean;
-      }
-    | undefined;
-  const progressQueryKey = ["trip-progress", tripId];
-  const { data: progress } = useQuery({
-    queryKey: progressQueryKey,
-    queryFn: () => fetchProgress({ data: { tripId } }),
-  });
-  const fetchMyPrefs = useServerFn(getMyParticipantPreferences);
-  const { data: myPrefsData } = useQuery({
-    queryKey: ["my-participant-prefs", tripId],
-    queryFn: () => fetchMyPrefs({ data: { tripId } }),
-    enabled: Boolean(tripId),
-    retry: false,
-  });
+    progressQueryKey,
+  } = useTripHubData(tripId);
+  const hubActions = useTripHubActions({ tripId, queryKey, progressQueryKey });
 
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey });
-    queryClient.invalidateQueries({ queryKey: progressQueryKey });
-  };
-
-  const removeMutation = useMutation({
-    mutationFn: (participantId: string) => removeGuest({ data: { participantId } }),
-    onSuccess: refresh,
-  });
-  const declareStatusFn = useServerFn(declareMyStatus);
-  const declareStatusMutation = useMutation({
-    mutationFn: (status: "accepte" | "absent") => declareStatusFn({ data: { tripId, status } }),
-    onSuccess: (res) => {
-      refresh();
-    },
-    onError: (e: any) => {
-      console.error("Impossible de mettre à jour ta participation:", e);
-      toast.error("Impossible de mettre à jour ta participation pour le moment.");
-    },
-  });
-  const cancelFn = useServerFn(cancelTrip);
-  const cancelMutation = useMutation({
-    mutationFn: (hardDelete?: boolean) =>
-      cancelFn({ data: { tripId, hardDelete: Boolean(hardDelete) } }),
-    onSuccess: (res) => {
-      toast.success(res.mode === "deleted" ? "Voyage supprimé" : "Voyage archivé");
-      window.location.href = "/dashboard";
-    },
-    onError: (e: any) => {
-      console.error("Impossible de gérer le voyage:", e);
-      toast.error("Impossible d’effectuer cette action pour le moment.");
-    },
-  });
   const tripPreview = data?.trip as any;
   const recommendationsPreview = (data?.recommendations ?? []) as any[];
   const selectedRecoPreview = recommendationsPreview.find((r: any) => r.is_selected);
@@ -408,33 +249,6 @@ function TripDetail() {
     });
   }
 
-  function buildWhatsAppRemindMessage() {
-    const trip = tripPreview || {};
-    const missingParticipants =
-      progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
-    const lines: string[] = [
-      `Petit rappel pour « ${trip.name || "notre voyage"} »`,
-      "",
-      "Il reste quelques réponses à compléter :",
-    ];
-
-    for (const p of missingParticipants) {
-      const name = p.display_name || p.email?.split("@")[0] || "Ami";
-      const missing: string[] = [];
-      if (!p.hasAnsweredAvailability) missing.push("disponibilités");
-      if (!p.hasAnswered) missing.push("préférences");
-      lines.push(`• ${name} : ${missing.join(" + ")}`);
-    }
-
-    lines.push("");
-    if (typeof window !== "undefined" && trip.id) {
-      lines.push(
-        `${window.location.origin}/trips/${trip.id}`,
-      );
-    }
-    return lines.join("\n");
-  }
-
   const isStar = useMemo(() => {
     if (!tripPreview || !data?.userId) return false;
     const starUid = tripPreview.star_user_id;
@@ -558,7 +372,7 @@ function TripDetail() {
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
-          search={{ view: "todo" }}
+          search={{ view: "todo", section: undefined }}
           className={cn(
             "pb-1 transition-colors hover:text-foreground",
             currentView === "todo"
@@ -571,7 +385,7 @@ function TripDetail() {
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
-          search={{ view: "voyage" }}
+          search={{ view: "voyage", section: undefined }}
           className={cn(
             "pb-1 transition-colors hover:text-foreground",
             currentView === "voyage"
@@ -621,263 +435,17 @@ function TripDetail() {
             tripEndDatePassed={tripEndDatePassed}
           />
 
-          {/* ZONE 5 — MEMBRES DU GROUPE (EXACT BLUEPRINT) */}
-          <section id="group-section" className="mt-12 space-y-4 scroll-mt-24 relative">
-            {/* Loutre trip-progress positionnée en haut à droite (visible mobile à 52px & desktop à 60px) */}
-            <div className="absolute top-0 right-0 z-10 pointer-events-none">
-              <img
-                src="/brand/otter-states/trip-progress.png"
-                alt=""
-                className="w-[52px] sm:w-[60px] h-auto object-contain filter drop-shadow-2xs opacity-90"
-                loading="lazy"
-              />
-            </div>
-
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-14 sm:pr-16">
-                <div className="relative inline-flex items-center gap-2 py-0.5 px-1">
-                  {/* Forme prune ciblée uniquement derrière le titre de section */}
-                  <KrewOrganicBlob
-                    tone="plum"
-                    variant="sweep"
-                    className="absolute -top-2 -left-3 w-[220px] sm:w-[250px] h-[46px] sm:h-[48px] pointer-events-none text-primary opacity-25 z-0"
-                  />
-                  <KrewIcon name="group" tone="plum" size="sm" className="size-[22px] shrink-0 relative z-10" />
-                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal leading-[1.02] text-foreground relative z-10">
-                    Membres du groupe
-                  </h2>
-                </div>
-              </div>
-
-              {/* Underline wave KrewMark sous le titre */}
-              <KrewMark type="underline-wave" tone="sage" size="sm" className="krew-group-title-underline mt-1 opacity-90 pointer-events-none" />
-            </div>
-
-            <ul className="divide-y divide-border/40 pt-1">
-              {participants.length === 0 ? (
-                <li className="text-sm text-muted-foreground py-4">
-                  Personne n’a encore rejoint le groupe.
-                </li>
-              ) : (
-                participants.map((p) => {
-                  const picks = (logistics.transportPicks ?? []) as any[];
-                  const userPick = p.user_id
-                    ? picks.find((pk: any) => pk.userId === p.user_id)
-                    : null;
-                  const city =
-                    progress?.participants?.find((pr: any) => pr.user_id === p.user_id)
-                      ?.departure_city ||
-                    p.departure_city ||
-                    userPick?.city ||
-                    null;
-                  const isOwner = Boolean(p.user_id && !p.placeholder && p.user_id === trip.owner_id);
-                  const isCoOrganizer = Boolean(
-                    p.user_id &&
-                      !p.placeholder &&
-                      p.user_id !== starUid &&
-                      p.user_id !== trip.owner_id &&
-                      p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId),
-                  );
-
-                  const transportMode = userPick?.mode ? String(userPick.mode).toLowerCase() : "";
-                  const transportIconName: "plane" | "train" | "car" | "transport" =
-                    transportMode.includes("flight") || transportMode.includes("plane") || transportMode.includes("avion")
-                      ? "plane"
-                      : transportMode.includes("train")
-                        ? "train"
-                        : transportMode.includes("car") || transportMode.includes("voiture")
-                          ? "car"
-                          : "transport";
-
-                  const initial = String(p.display_name || p.email || "P").trim().charAt(0).toUpperCase();
-
-                  return (
-                    <li
-                      key={p.id}
-                      className="flex flex-row items-center justify-between min-h-[48px] py-2.5 gap-3"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {/* Petit repère graphique initial */}
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sage/16 text-primary font-mono text-xs font-semibold">
-                          {initial}
-                        </span>
-
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-foreground text-sm truncate flex items-center">
-                              <span>{p.display_name ?? p.email}</span>
-                              {p.user_id === data.userId ? (
-                                <span className="font-normal text-[11px] text-muted-foreground ml-1.5 shrink-0">
-                                  (Moi)
-                                </span>
-                              ) : null}
-                            </p>
-                            {isOwner ? (
-                              <span className="text-[11px] font-medium text-primary whitespace-nowrap">
-                                Organisateur·rice
-                              </span>
-                            ) : isCoOrganizer ? (
-                              <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
-                                Co-organisateur·rice
-                              </span>
-                            ) : null}
-                            {p.isStar ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary whitespace-nowrap">
-                                <KrewIcon name="favorite" tone="sage" size="sm" className="size-3" />
-                                <span>Star</span>
-                              </span>
-                            ) : null}
-                          </div>
-                          {city || userPick ? (
-                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              {city ? (
-                                <span className="inline-flex items-center gap-1">
-                                  <KrewIcon name="destination" tone="muted" size="sm" className="size-3" />
-                                  <span>Départ : <strong className="text-foreground font-normal">{city}</strong></span>
-                                </span>
-                              ) : null}
-                              {userPick ? (
-                                <span className="inline-flex items-center gap-1">
-                                  <KrewIcon name={transportIconName} tone="muted" size="sm" className="size-3" />
-                                  <span>Trajet : <strong className="text-foreground font-normal">{userPick.modeLabel || userPick.mode}</strong></span>
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-xs">
-                        {p.status === "accepte" ? (
-                          <span className="inline-flex items-center gap-1 font-medium text-primary whitespace-nowrap">
-                            <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" />
-                            <span>Participe</span>
-                          </span>
-                        ) : p.status === "absent" ? (
-                          <span className="text-muted-foreground italic whitespace-nowrap">Absent</span>
-                        ) : (
-                          <span className="text-muted-foreground whitespace-nowrap capitalize">{p.status}</span>
-                        )}
-
-                        {p.user_id === data.userId ? (
-                          <button
-                            type="button"
-                            className="text-xs text-primary font-medium hover:underline ml-2 whitespace-nowrap"
-                            onClick={() => {
-                              const nextStatus =
-                                (p.status as string) === "absent" ? "accepte" : "absent";
-                              declareStatusMutation.mutate(nextStatus);
-                            }}
-                          >
-                            {(p.status as string) === "absent"
-                              ? "Participer à nouveau"
-                              : "Indiquer mon absence"}
-                          </button>
-                        ) : null}
-
-                        {data.isCreator && p.user_id && !p.placeholder && !p.isStar && p.user_id !== "star-virtual-uid" && p.user_id !== trip.owner_id ? (
-                          p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
-                            <button
-                              type="button"
-                              className="text-xs text-destructive/80 hover:underline"
-                              disabled={setCoOrgMutation.isPending}
-                              onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
-                            >
-                              Retirer le rôle de co-organisateur·rice
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-                              disabled={setCoOrgMutation.isPending}
-                              onClick={() =>
-                                setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
-                              }
-                            >
-                              Nommer co-organisateur·rice
-                            </button>
-                          )
-                        ) : null}
-
-                        {data.isOwner && !p.placeholder && !p.isStar ? (
-                          <button
-                            type="button"
-                            aria-label={`Retirer ${p.email || p.display_name}`}
-                            className="text-muted-foreground/70 hover:text-destructive p-1"
-                            onClick={() => removeMutation.mutate(p.id)}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-
-            <div className="mt-4 border-t-2 border-sage/35 pt-3">
-                <div className="flex flex-wrap items-center gap-2 text-sm font-sans text-muted-foreground">
-                  <span className="font-sans text-foreground font-semibold">Total : <span className="font-mono">
-                    {trip.participants_count || 2}
-                  </span></span>{" "}
-                  participants
-                  {data.isOwner ? (
-                    isEditingCount ? (
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (countInput >= 2 && countInput <= 25) {
-                            updateCountMutation.mutate(countInput);
-                          } else {
-                            toast.error("Le nombre de participants doit être entre 2 et 25");
-                          }
-                        }}
-                        className="inline-flex items-center gap-1.5 ml-2"
-                      >
-                        <Input
-                          type="number"
-                          min={2}
-                          max={25}
-                          value={countInput}
-                          onFocus={(e) => e.currentTarget.select()}
-                          onChange={(e) => setCountInput(Number(e.target.value))}
-                          className="w-16 h-7 text-xs font-mono"
-                        />
-                        <button
-                          type="submit"
-                          className="text-xs font-semibold text-primary hover:underline"
-                          disabled={updateCountMutation.isPending}
-                        >
-                          Enregistrer
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs text-muted-foreground hover:underline"
-                          onClick={() => setIsEditingCount(false)}
-                        >
-                          Annuler
-                        </button>
-                      </form>
-                    ) : (
-                      <button
-                        type="button"
-                        className="text-sm text-primary font-medium hover:underline ml-1"
-                        onClick={() => {
-                          setCountInput(Number(trip.participants_count || 2));
-                          setIsEditingCount(true);
-                        }}
-                      >
-                        Modifier
-                      </button>
-                    )
-                  ) : null}
-                </div>
-            </div>
-
-            {/* ACTION UNIQUE : RELANCER LE GROUPE */}
-            {data.isOwner ? <div className="pt-4 border-t border-border/40"><Button type="button" variant="ghost" className="w-auto justify-start" onClick={() => shareOnWhatsApp(buildWhatsAppRemindMessage())}><KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" /><span>Relancer le groupe</span></Button></div> : null}
-          </section>
+          <TripHubMembersSection
+            trip={trip}
+            participants={participants}
+            logistics={logistics}
+            progress={progress}
+            viewerUserId={data.userId}
+            isCreator={Boolean(data.isCreator)}
+            isOwner={Boolean(data.isOwner)}
+            starUid={starUid}
+            actions={hubActions}
+          />
 
           {costSplitData?.split ? (
             <section
@@ -922,10 +490,10 @@ function TripDetail() {
                   <button
                     type="button"
                     className="self-start text-sm text-primary hover:underline"
-                    disabled={cancelMutation.isPending}
+                    disabled={hubActions.cancelMutation.isPending}
                     onClick={() => {
                       if (window.confirm("Archiver ce voyage ? Tu pourras le retrouver et le réactiver plus tard.")) {
-                        cancelMutation.mutate(false);
+                        hubActions.cancelMutation.mutate(false);
                       }
                     }}
                   >
@@ -938,14 +506,14 @@ function TripDetail() {
                     <button
                       type="button"
                       className="inline-flex items-center gap-2 text-destructive/80 hover:text-destructive hover:underline text-sm font-medium"
-                      disabled={cancelMutation.isPending}
+                      disabled={hubActions.cancelMutation.isPending}
                       onClick={() => {
                         if (
                           window.confirm(
                             "Supprimer définitivement ce voyage et toutes ses données ? Cette action est irréversible.",
                           )
                         ) {
-                          cancelMutation.mutate(true);
+                          hubActions.cancelMutation.mutate(true);
                         }
                       }}
                     >
@@ -963,333 +531,42 @@ function TripDetail() {
         </div>
       ) : null}
 
-      {/* Restitution finale uniquement lorsque destination et planning sont réellement validés. */}
       {finalRestitutionReady ? (
-        <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <Wallet className="size-5 text-primary" />
-                Résumé du voyage
-              </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Retrouve ici les éléments principaux du voyage.
-              </p>
-            </div>
-            <Button
-              type="button"
-              className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
-              onClick={() => {
-                const text = buildWhatsAppStatusMessage();
-                shareOnWhatsApp(text);
-              }}
-            >
-              Partager sur WhatsApp
-            </Button>
-          </div>
-
-          <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
-            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Dates</dt>
-              <dd className="mt-0.5 font-medium">
-                {trip.start_date && trip.end_date
-                  ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
-                  : trip.start_date
-                    ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")
-                    : "À définir"}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Lieu</dt>
-              <dd className="mt-0.5 font-medium">
-                {liveBudget.destinationName
-                  ? `${liveBudget.destinationName}${liveBudget.country ? ` · ${liveBudget.country}` : ""}`
-                  : "Destination à choisir"}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Budget estimé par personne
-              </dt>
-              <dd className="mt-0.5 font-semibold text-primary text-sm">
-                {(costSplitData?.totalReserved != null && costSplitData.totalReserved > 0) ||
-                (costSplitData?.totalEstimated != null && costSplitData.totalEstimated > 0) ? (
-                  <div className="text-xs space-y-0.5 font-normal">
-                    <div className="flex justify-between gap-1">
-                      <span>Déjà réservé :</span>{" "}
-                      <span className="font-bold text-primary font-mono">
-                        {formatEuro(costSplitData.totalReserved ?? 0)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-1">
-                      <span>Reste estimé :</span>{" "}
-                      <span className="font-bold text-foreground font-mono">
-                        {formatEuro(costSplitData.totalEstimated ?? 0)}
-                      </span>
-                    </div>
-                  </div>
-                ) : liveBudget.total > 0 ? (
-                  `~${formatEuro(liveBudget.total)} / pers.`
-                ) : (
-                  "À définir"
-                )}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Groupe</dt>
-              <dd className="mt-0.5 font-medium">
-                {trip.participants_count || participants?.length || "?"} pers.
-                {liveBudget.topHotelName ? ` · hébergement : ${liveBudget.topHotelName}` : ""}
-              </dd>
-            </div>
-          </dl>
-
-          {liveBudget.total > 0 ? (
-            <ul className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <li className="rounded-full border border-border px-2.5 py-1">
-                Transport ~{formatEuro(liveBudget.transport)}
-              </li>
-              <li className="rounded-full border border-border px-2.5 py-1">
-                Hébergement ~{formatEuro(liveBudget.accommodation)}
-              </li>
-              <li className="rounded-full border border-border px-2.5 py-1">
-                Activités ~{formatEuro(liveBudget.activities)}
-              </li>
-              <li className="rounded-full border border-border px-2.5 py-1">
-                Repas ~{formatEuro(liveBudget.food)}
-              </li>
-              {liveBudget.transportPicksCount > 0 ? (
-                <li className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-primary">
-                  {liveBudget.transportPicksCount} trajet(s) choisi(s)
-                </li>
-              ) : null}
-            </ul>
-          ) : null}
-        </section>
+        <TripHubFinalRecap
+          trip={trip}
+          participantsCount={Number(trip.participants_count || participants.length || 0)}
+          liveBudget={liveBudget}
+          costSplitData={costSplitData}
+          onShare={() => shareOnWhatsApp(buildWhatsAppStatusMessage())}
+        />
       ) : null}
 
-
-      {/* VUE VOYAGE (KREW JOURNEY TIMELINE) */}
-      {currentView === "voyage" ? (
-        !currentSection ? (
-          (() => {
-            const totalParts = progress?.total || trip.participants_count || 1;
-            const availGroupDone = datesLocked || ((availData?.answered ?? 0) >= totalParts && totalParts > 0);
-            const prefsGroupDone = (progress?.answered ?? 0) >= totalParts && totalParts > 0;
-            const myAvailDone = datesLocked || Boolean(availData?.mine);
-            const myPrefsDone = Boolean((myPrefsData as any)?.preferences);
-            const starDone = Boolean(starData?.preferences);
-
-            const datesReady = datesLocked;
-            const profileDone = Boolean(profile?.validated);
-            const profileReady = Boolean(readiness?.profile.questionnairesReady);
-            const destDone = destinationSelected;
-            const hotelDone = Boolean(logistics.selectedHotelId);
-            const hotelOffersReady = Boolean(logistics.hotels?.length);
-            const transportDone = Boolean(liveBudget.transportPicksCount && liveBudget.transportPicksCount >= totalParts);
-            const planDone = hasItinerary;
-
-            // Single next action matching Dashboard NextActionsPanel
-            let nextActionId: string | null = null;
-            if (!myAvailDone) nextActionId = "availability";
-            else if (!myPrefsDone) nextActionId = "preferences";
-            else if (hasStar && !starDone) nextActionId = "star";
-            else if (!datesReady && data.isOwner) nextActionId = "dates";
-            else if (datesReady && !profileDone && profileReady && data.isOwner) nextActionId = "profile";
-            else if (datesReady && profileDone && !destDone && data.isOwner) nextActionId = "destination";
-            else if (destDone && hotelOffersReady && !hotelDone && data.isOwner) nextActionId = "accommodation";
-            else if (destDone && !transportDone) nextActionId = "transport";
-            else if (destDone && !planDone && data.isOwner) nextActionId = "planning";
-
-            // Step accessibility gating
-            const isStepAvailable = (id: string): boolean => {
-              if (id === "availability" || id === "preferences" || id === "star") return true;
-              if (id === "dates") return true; // Always accessible to view/lock dates
-              if (id === "profile") return datesReady && profileReady;
-              if (id === "destination") return datesReady && (profileDone || Boolean(profile?.legacyBypass));
-              if (id === "accommodation" || id === "transport") return destDone;
-              if (id === "planning" || id === "tasks" || id === "packing") return destDone;
-              return false;
-            };
-
-            const getStepStatus = (id: string, isGroupDone: boolean): "done" | "next_action" | "available" | "upcoming" => {
-              if (isGroupDone) return "done";
-              if (id === nextActionId) return "next_action";
-              if (isStepAvailable(id)) return "available";
-              return "upcoming";
-            };
-
-            const timelineSteps: TimelineStep[] = [
-              {
-                id: "availability",
-                title: "Disponibilités",
-                subtitle: datesLocked ? "Dates confirmées" : `${availData?.answered ?? 0}/${totalParts} indiquées`,
-                iconName: "availability",
-                status: getStepStatus("availability", availGroupDone),
-                category: "questionnaire",
-                href: `/trips/${tripId}/availability`,
-              },
-              {
-                id: "preferences",
-                title: "Préférences",
-                subtitle: `${progress?.answered ?? 0}/${totalParts} réponses`,
-                iconName: "preferences",
-                status: getStepStatus("preferences", prefsGroupDone),
-                category: "questionnaire",
-                href: `/trips/${tripId}/questionnaire`,
-              },
-            ];
-
-            if (hasStar || celebratedPerson || ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) {
-              timelineSteps.push({
-                id: "star",
-                title: `Préférences de ${celebratedPerson || "la Star"}`,
-                subtitle: starDone ? "Complété" : "À remplir",
-                iconName: "favorite",
-                status: getStepStatus("star", starDone),
-                category: "questionnaire",
-                href: `/trips/${tripId}/star`,
-              });
-            }
-
-            timelineSteps.push(
-              {
-                id: "dates",
-                title: "Dates du groupe",
-                subtitle: datesLocked && trip.start_date
-                  ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date((trip.end_date || trip.start_date) + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
-                  : "À confirmer",
-                iconName: "calendar",
-                status: getStepStatus("dates", datesReady),
-                category: "prepare",
-                href: `/trips/${tripId}/dates`,
-              },
-              {
-                id: "profile",
-                title: "Profil du voyage",
-                subtitle: profile?.selectedConcepts?.length
-                  ? profile.selectedConcepts.map((c) => PROFILE_LABELS[c.id as StayProfileId] || c.title).join(" · ")
-                  : profileDone
-                    ? "Profil enregistré"
-                    : "À choisir",
-                iconName: "profile",
-                status: getStepStatus("profile", profileDone),
-                category: "prepare",
-                href: isStepAvailable("profile") ? `/trips/${tripId}/profile` : null,
-              },
-              {
-                id: "destination",
-                title: "Destination",
-                subtitle: liveBudget.destinationName || (recommendations.length > 0 ? "Propositions prêtes" : "En attente de choix"),
-                iconName: "destination",
-                status: getStepStatus("destination", destDone),
-                category: "prepare",
-                href: isStepAvailable("destination") ? `/trips/${tripId}/destination` : null,
-              },
-              {
-                id: "accommodation",
-                title: "Hébergement",
-                subtitle: liveBudget.topHotelName || (hotelOffersReady ? "Options à voter" : "En attente"),
-                iconName: "accommodation",
-                status: getStepStatus("accommodation", hotelDone),
-                category: "prepare",
-                href: isStepAvailable("accommodation") ? `/trips/${tripId}/accommodation` : null,
-              },
-              {
-                id: "transport",
-                title: "Transport",
-                subtitle: liveBudget.transportPicksCount ? `${liveBudget.transportPicksCount} trajet${liveBudget.transportPicksCount > 1 ? "s" : ""} choisi${liveBudget.transportPicksCount > 1 ? "s" : ""}` : "Choix individuels",
-                iconName: "transport",
-                status: getStepStatus("transport", transportDone),
-                category: "prepare",
-                href: isStepAvailable("transport") ? `/trips/${tripId}/transport` : null,
-              },
-              {
-                id: "planning",
-                title: "Planning",
-                subtitle: planDone ? "Planning en place" : "Activités et moments forts",
-                iconName: "planning",
-                status: getStepStatus("planning", planDone),
-                category: "organisation",
-                href: isStepAvailable("planning") ? `/trips/${tripId}/planning` : null,
-              },
-              {
-                id: "tasks",
-                title: "Tâches",
-                subtitle: tasksData?.length ? `${tasksData.length} tâche(s)` : "Répartition du groupe",
-                iconName: "tasks",
-                status: getStepStatus("tasks", Boolean(tasksData?.length && planDone)),
-                category: "organisation",
-                href: isStepAvailable("tasks") ? `/trips/${tripId}/tasks` : null,
-              },
-              {
-                id: "packing",
-                title: "À emporter",
-                subtitle: "Liste adaptée au voyage",
-                iconName: "packing",
-                status: getStepStatus("packing", false),
-                category: "organisation",
-                href: isStepAvailable("packing") ? `/trips/${tripId}/packing` : null,
-              },
-            );
-
-            // "Vos souvenirs de voyage" step - active from start_date onwards
-            const tripStarted = tripLifecycle === "live" || tripLifecycle === "completed";
-
-            timelineSteps.push({
-              id: "memories",
-              title: "Souvenirs du voyage",
-              subtitle: tripStarted ? "Album et photos du groupe" : "Se débloquera au moment du voyage",
-              iconName: "camera",
-              status: tripStarted ? "available" : "upcoming",
-              category: "souvenirs",
-              href: tripStarted ? `/trips/${tripId}/memories` : null,
-            });
-
-            return (
-              <KrewJourneyTimeline
-                tripId={tripId}
-                tripName={trip.name}
-                steps={timelineSteps}
-                annotationText="Prochaine étape"
-              />
-            );
-          })()
-        ) : (
-          <div className="space-y-6">
-            <Link
-              to="/trips/$tripId"
-              params={{ tripId }}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-            >
-              <ArrowLeft className="size-4" /> Retour au voyage
-            </Link>
-
-      {currentSection === "expenses" && destinationSelected && costSplitData?.split ? (
-        <section
-          id="hub-cost-split"
-          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
-        >
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <Wallet className="size-5 text-primary" />
-                Répartition des coûts
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Une estimation de la part de chacun pour le voyage.
-              </p>
-            </div>
-          </div>
-          <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />
-        </section>
-      ) : null}
-
-      
-
-          </div>
-        )
-      ) : null}
+      <TripHubJourneyView
+        currentView={currentView}
+        currentSection={currentSection}
+        tripId={tripId}
+        trip={trip}
+        isOwner={Boolean(data.isOwner)}
+        profile={profile}
+        progressAnswered={progress?.answered ?? 0}
+        progressTotal={progress?.total ?? Number(trip.participants_count || 0)}
+        availabilityAnswered={availData?.answered ?? 0}
+        availabilityMine={Boolean(availData?.mine)}
+        myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
+        starDone={Boolean(starData?.preferences)}
+        profileReady={Boolean(readiness?.profile.questionnairesReady)}
+        destinationSelected={destinationSelected}
+        selectedHotelId={logistics.selectedHotelId}
+        hotelOffersReady={Boolean(logistics.hotels?.length)}
+        liveBudget={liveBudget}
+        recommendationsCount={recommendations.length}
+        tasksCount={tasksData?.length ?? 0}
+        hasStar={hasStar}
+        celebratedPerson={celebratedPerson}
+        tripLifecycle={tripLifecycle}
+        hasItinerary={hasItinerary}
+        costSplitSplit={costSplitData?.split}
+      />
     </KrewPageShell>
   );
 }
