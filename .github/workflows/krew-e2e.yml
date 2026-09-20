@@ -1,4 +1,4 @@
-name: Hub Migration Verification
+name: Hub Migration E2E Verification
 
 on:
   push:
@@ -7,17 +7,17 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 30
+    env:
+      KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
+      KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
+      KREW_E2E_API_MODE: safe
+      KREW_E2E_BASE_URL: https://krew-trip-wizard-9dqxfyzg4-coco34566s-projects.vercel.app
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
       - run: npm ci
-      - name: TypeScript noUnusedLocals
-        continue-on-error: true
-        run: npx tsc --noEmit --noUnusedLocals
-      - name: Knip
-        continue-on-error: true
-        run: npx --yes knip
+      - run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
+      - name: Hub autonomous navigation and legacy redirects
+        run: npx playwright test hub-autonomous-navigation.spec.ts --project=mobile-safari
