@@ -30,6 +30,8 @@ export const getTripRecap = createServerFn({ method: "GET" })
       if (!part.data) throw new Error("Accès réservé aux membres du voyage");
     }
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     const [recommendations, preferences, progress] = await Promise.all([
       supabase
         .from("recommendations")
@@ -46,7 +48,7 @@ export const getTripRecap = createServerFn({ method: "GET" })
         const { getParticipantsProgress } = await import("@/lib/participant-preferences.functions");
         // fallback inline if no handler export
         try {
-          const prefs = await supabase
+          const prefs = await supabaseAdmin
             .from("trip_participant_preferences")
             .select("user_id")
             .eq("trip_id", data.tripId);
@@ -66,7 +68,7 @@ export const getTripRecap = createServerFn({ method: "GET" })
     if (recommendations.error) throw recommendations.error;
 
     const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
-    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    const aggregated = await aggregateParticipantPreferences(supabaseAdmin, data.tripId);
 
     const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
     let departureOrigins =
@@ -379,7 +381,8 @@ export const getCostSplit = createServerFn({ method: "GET" })
 
     const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
     const { buildCostSplit } = await import("@/lib/krew/cost-split");
-    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const aggregated = await aggregateParticipantPreferences(supabaseAdmin, data.tripId);
 
     const partsRes = await supabase
       .from("trip_participants")
@@ -389,11 +392,11 @@ export const getCostSplit = createServerFn({ method: "GET" })
     const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
 
     const [prefsRes, starPrefsRes] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from("trip_participant_preferences")
         .select("user_id, departure_city")
         .eq("trip_id", data.tripId),
-      supabase
+      supabaseAdmin
         .from("trip_star_preferences")
         .select("user_id, departure_city")
         .eq("trip_id", data.tripId)
