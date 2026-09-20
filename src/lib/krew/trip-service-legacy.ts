@@ -1782,6 +1782,7 @@ export async function generateRecommendationsForTrip(
   // Destination discovery deliberately does not search live flights, properties or
   // activities. Those providers belong to their explicit downstream workflows.
   const providerErrors: string[] = [];
+  const travelConstraintRejections: Array<{ destination: string; reason: string }> = [];
 
   // 3) Catalogue enrichi — TOUJOURS restreint à la shortlist dynamique
   //    (sans ce filtre, loadTravelCatalog recharge tout le seed SQL)
@@ -2004,6 +2005,10 @@ export async function generateRecommendationsForTrip(
       });
       if (rejection) {
         candidateIncompatible = true;
+        travelConstraintRejections.push({
+          destination: destination.name,
+          reason: rejection.reason,
+        });
         providerErrors.push(
           `[travel-constraint] ${destination.name}: ${rejection.reason}`,
         );
@@ -2201,6 +2206,7 @@ export async function generateRecommendationsForTrip(
       count: 0,
       generationState: "no_admissible_proposals",
       providerErrors,
+      travelConstraintRejections,
       shortlist: shortlistNames,
       apiAccommodations: apiAccIds.size,
       llmRationales,
@@ -2226,6 +2232,7 @@ export async function generateRecommendationsForTrip(
     count: rows.length,
     generationState: rows.length ? "generated" : "no_admissible_proposals",
     providerErrors,
+    travelConstraintRejections,
     shortlist: shortlistNames,
     apiAccommodations: apiAccIds.size,
     transportQuotes: Object.keys(transportByDestinationId).length,
