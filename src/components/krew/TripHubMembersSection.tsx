@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -305,7 +306,17 @@ export function TripHubMembersSection({
       </div>
 
       {data.isOwner ? (
-        <div className="pt-4 border-t border-border/40">
+        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border/40">
+          <Button asChild variant="outline" className="w-auto justify-start">
+            <Link
+              to="/trips/$tripId"
+              params={{ tripId: trip.id }}
+              search={{ view: "feedback" }}
+            >
+              <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
+              <span>Voir les retours du groupe</span>
+            </Link>
+          </Button>
           <Button type="button" variant="ghost" className="w-auto justify-start" onClick={onRemind}>
             <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" />
             <span>Relancer le groupe</span>
