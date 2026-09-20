@@ -57,7 +57,7 @@ export function estimateDistanceKmFromCoordinates(
 export function estimateDistanceKm(originCity: string, destCity: string, fallbackKm?: number | null): number {
   const o = CITY_COORDS[normalizeCityKey(originCity)];
   const d = CITY_COORDS[normalizeCityKey(destCity)];
-  if (o && d) return estimateDistanceKmFromCoordinates(o, d);
+  if (o && d) return Math.round(estimateDistanceKmFromCoordinates(o, d));
   if (fallbackKm != null && Number.isFinite(fallbackKm)) return Number(fallbackKm);
   return 9999;
 }
