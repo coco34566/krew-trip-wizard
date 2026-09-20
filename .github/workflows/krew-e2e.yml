@@ -1,6 +1,8 @@
 name: KREW Smoke E2E
 
 on:
+  push:
+    branches: [audit/hub-migration-validation]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
@@ -168,6 +170,23 @@ jobs:
 
       - name: Install Playwright test runner without changing the lockfile
         run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
+
+      - name: Check changed hub files with noUnused
+        run: |
+          npx tsc --noEmit --noUnusedLocals --noUnusedParameters --pretty false > /tmp/tsc-unused.log 2>&1 || true
+          cat /tmp/tsc-unused.log
+          if grep -E 'src/(hooks/useTripHub(Data|Actions)|components/krew/TripHub(MembersSection|FinalRecap|JourneyView)|routes/_authenticated/trips\.\$tripId\.index)\.tsx?' /tmp/tsc-unused.log; then
+            echo "Changed hub files contain TypeScript/noUnused errors"
+            exit 1
+          fi
+
+      - name: Run Knip audit
+        continue-on-error: true
+        run: npx --yes knip
+
+      - name: Run hub autonomous navigation E2E
+        if: env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        run: npx playwright test hub-autonomous-navigation.spec.ts --project=mobile-safari
 
       - name: Run advisory smoke journey on PR
         if: github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
