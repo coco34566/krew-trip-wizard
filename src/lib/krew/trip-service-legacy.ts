@@ -33,12 +33,12 @@ import {
   geocodeDestination,
   haversineKm,
 } from "@/integrations/external/geo-weather.server";
-import { estimateDistanceKm } from "./deep-links";
 import {
   evaluateParticipantTravelConstraint,
   findCandidateTransportForOrigin,
   hasDeclaredTravelConstraint,
 } from "./travel-constraints";
+import { resolveRouteDistanceKm } from "./travel-distance.server";
 import { aggregateStayProfiles, buildStayConcepts, routeDiscovery, type StayProfileId } from "./stay-profiles";
 import { attachAnchorEnrichments } from "./discovery-enrichment";
 
