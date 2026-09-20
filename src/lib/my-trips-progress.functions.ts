@@ -11,10 +11,22 @@ export const getMyTripsProgress = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const uniqueTripIds = [...new Set(data.tripIds)];
+    if (!uniqueTripIds.length) return {};
+
+    const visibleTrips = await context.supabase
+      .from("trips")
+      .select("id")
+      .in("id", uniqueTripIds);
+    if (visibleTrips.error) throw visibleTrips.error;
+
+    const visibleTripIds = new Set((visibleTrips.data ?? []).map((trip) => trip.id));
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     const entries = await Promise.all(
       uniqueTripIds.map(async (tripId) => {
+        if (!visibleTripIds.has(tripId)) return null;
         try {
-          const progress = await getParticipantsProgressHelper(context.supabase, tripId);
+          const progress = await getParticipantsProgressHelper(supabaseAdmin, tripId);
           return [
             tripId,
             {
