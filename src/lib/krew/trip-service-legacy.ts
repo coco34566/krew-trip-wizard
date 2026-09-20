@@ -31,7 +31,14 @@ import {
   distanceFromParisKm,
   fetchClimate,
   geocodeDestination,
+  haversineKm,
 } from "@/integrations/external/geo-weather.server";
+import { estimateDistanceKm } from "./deep-links";
+import {
+  evaluateParticipantTravelConstraint,
+  findCandidateTransportForOrigin,
+  hasDeclaredTravelConstraint,
+} from "./travel-constraints";
 import { aggregateStayProfiles, buildStayConcepts, routeDiscovery, type StayProfileId } from "./stay-profiles";
 import { attachAnchorEnrichments } from "./discovery-enrichment";
 
@@ -614,7 +621,7 @@ export async function aggregateParticipantPreferences(
   const res = await supabase
     .from("trip_participant_preferences")
     .select(
-      "user_id, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, lodging_type_preferences, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates, group_age_range, wanted_env_type, weather_preference, free_text, local_mobility, accommodation_role",
+      "user_id, submitted_at, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, lodging_type_preferences, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates, group_age_range, wanted_env_type, weather_preference, free_text, local_mobility, accommodation_role",
     )
     .eq("trip_id", tripId);
   if (res.error) {
@@ -713,6 +720,7 @@ export async function aggregateParticipantPreferences(
         rows.push({
           __isStar: true,
           user_id: tripMeta.data?.star_user_id ?? STAR_VIRTUAL_USER_ID,
+          submitted_at: starData.submitted_at ?? null,
           ambiances: starData.ambiances ?? [],
           activity_categories: withoutEventSpecificSignals(starData.wanted_activities),
           budget_max: null,
@@ -912,6 +920,8 @@ export async function aggregateParticipantPreferences(
     const uid = (r.user_id as string) || null;
     const isStar = Boolean(r.__isStar || (starUserId && uid && uid === starUserId));
     return {
+      userId: uid,
+      submittedAt: r.submitted_at ?? null,
       ambiances: r.ambiances ?? [],
       activityCategories: r.activity_categories ?? [],
       budgetMax: Number(r.budget_max ?? 0) > 0 ? Number(r.budget_max) : null,
