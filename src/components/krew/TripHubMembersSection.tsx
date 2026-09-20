@@ -23,6 +23,8 @@ export function TripHubMembersSection({
   const trip = hub.trip;
   if (!data || !trip) return null;
 
+  const canManageTrip = isTripAdmin(trip, data.userId);
+
   const participants = hub.participants;
   const logistics = hub.logistics;
   const progress = hub.progress;
