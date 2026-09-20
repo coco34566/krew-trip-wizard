@@ -16,6 +16,7 @@ import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewIcon } from "@/components/krew/visual-language";
 import { useKrewTripAvatars } from "@/hooks/useKrewTripAvatars";
 import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
+import { getParticipantsProgress } from "@/lib/participant-progress.functions";
 import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { trackProductEvent } from "@/lib/product-analytics";
@@ -45,6 +46,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
   const fetchInviteLink = useServerFn(getTripInviteLink);
+  const fetchProgress = useServerFn(getParticipantsProgress);
   const rotateInviteLink = useServerFn(rotateTripInviteLink);
   const invite = useServerFn(inviteParticipant);
   const remove = useServerFn(removeParticipant);
@@ -57,6 +59,10 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     queryFn: () => fetchDetail({ data: { tripId } }),
   });
   const avatarQuery = useKrewTripAvatars(tripId);
+  const progressQuery = useQuery({
+    queryKey: ["trip-participants-progress", tripId],
+    queryFn: () => fetchProgress({ data: { tripId } }),
+  });
   const inviteLinkQuery = useQuery({
     queryKey: ["trip-invite-link", tripId],
     queryFn: () => fetchInviteLink({ data: { tripId } }),
@@ -157,14 +163,21 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   }
 
   const rawParticipants = (data.participants ?? []) as any[];
+  const progressParticipants = ((progressQuery.data as any)?.participants ?? []) as any[];
+  const progressByUserId = new Map(
+    progressParticipants
+      .filter((participant) => participant.user_id)
+      .map((participant) => [participant.user_id, participant]),
+  );
   const hasStar = Boolean(
     trip.has_star || trip.celebrated_person || trip.star_user_id || STAR_EVENT_TYPES.has(trip.event_type),
   );
   const starAlreadyListed = Boolean(
     trip.star_user_id && rawParticipants.some((participant) => participant.user_id === trip.star_user_id),
   );
-  const hiddenSecretStarSlot = hasStar && savedStarMode === "secret" && !starAlreadyListed ? 1 : 0;
-  const occupiedSlots = rawParticipants.length + hiddenSecretStarSlot;
+  const secretStarProgress = progressParticipants.find((participant) => participant.isSecretStar);
+  const secretStarSlot = hasStar && savedStarMode === "secret" && !starAlreadyListed ? 1 : 0;
+  const occupiedSlots = rawParticipants.length + secretStarSlot;
   const placeholders = Array.from(
     { length: Math.max(0, Number(trip.participants_count || 0) - occupiedSlots) },
     (_, index) => ({
@@ -175,7 +188,28 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
       placeholder: true,
     }),
   );
-  const displayedParticipants = [...rawParticipants, ...placeholders];
+  const enrichedParticipants = rawParticipants.map((participant) => {
+    const progress = participant.user_id ? progressByUserId.get(participant.user_id) : null;
+    return {
+      ...participant,
+      isStar: Boolean(progress?.isStar) || Boolean(trip.star_user_id && participant.user_id === trip.star_user_id),
+      hasAnswered: Boolean(progress?.hasAnswered),
+    };
+  });
+  const secretStarRow =
+    savedStarMode === "secret" && secretStarSlot && data.isOwner
+      ? [{
+          id: "star-secret-invite",
+          user_id: null,
+          email: null,
+          display_name: trip.celebrated_person || "La Star",
+          status: "accepte",
+          isStar: true,
+          isSecretStar: true,
+          hasAnswered: Boolean(secretStarProgress?.hasAnswered),
+        }]
+      : [];
+  const displayedParticipants = [...enrichedParticipants, ...secretStarRow, ...placeholders];
   const avatarMap = avatarQuery.data ?? new Map<string, string | null>();
 
   return (
@@ -260,6 +294,11 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
                     {isOwner ? <Badge variant="sun"><Crown className="mr-1 size-3" />Organisateur·rice</Badge> : null}
                     {isCoOrg ? <Badge variant="secondary"><Shield className="mr-1 size-3" />Co-organisateur·rice</Badge> : null}
                     {participant.isStar ? <Badge variant="sun">Star</Badge> : null}
+                    {!participant.placeholder ? (
+                      <Badge variant={participant.hasAnswered ? "secondary" : "muted"}>
+                        {participant.hasAnswered ? "Questionnaire rempli" : "Questionnaire à remplir"}
+                      </Badge>
+                    ) : null}
                     {participant.placeholder ? <Badge variant="muted">À inviter</Badge> : null}
                   </div>
                 </div>
