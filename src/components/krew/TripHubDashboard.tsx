@@ -716,9 +716,8 @@ export function TripHubDashboard({
         </Link>
         {datesLocked && profileReady ? (
           <Link
-            to="/trips/$tripId"
+            to="/trips/$tripId/profile"
             params={{ tripId }}
-            search={{ view: "voyage", section: "profile" }}
             className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
           >
             <KrewIcon name="profile" tone="plum" size="sm" className="size-4" />
