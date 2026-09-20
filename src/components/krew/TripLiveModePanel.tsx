@@ -246,9 +246,8 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
               Les conditions prévues peuvent réellement gêner {text(weatherConflictState.slot.label) || "cette activité extérieure"}.
             </p>
             <Link
-              to="/trips/$tripId"
+              to="/trips/$tripId/planning"
               params={{ tripId }}
-              search={{ view: "voyage", section: "planning" }}
               className="mt-2 inline-flex min-h-9 items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
             >
               Vérifier ce créneau
@@ -272,9 +271,8 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
 
         <div className="mt-4 flex justify-end">
           <Link
-            to="/trips/$tripId"
+            to="/trips/$tripId/planning"
             params={{ tripId }}
-            search={{ view: "voyage", section: "planning" }}
             className="inline-flex min-h-10 items-center gap-1.5 px-1 text-sm font-semibold text-primary hover:underline"
           >
             Voir tout le planning
