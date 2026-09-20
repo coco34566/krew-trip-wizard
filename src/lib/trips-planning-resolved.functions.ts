@@ -2,11 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { buildFinalItinerarySlot } from "./trips/helpers";
 import {
-  buildFinalItinerarySlot,
   generateGroupItinerary as generateGroupItineraryLegacy,
   regenerateItinerarySlot as regenerateItinerarySlotLegacy,
-} from "./trips.functions";
+} from "./trips/itinerary.legacy.functions";
 import {
   buildVerifiedPlaceFallbackUrl,
   convertIntentToPlaceRequirements,
