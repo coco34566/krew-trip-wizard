@@ -1,0 +1,35 @@
+name: Hub Refactor Audit
+
+on:
+  push:
+    branches: [audit/hub-refactor-413]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: tsc noUnused audit
+        run: |
+          set +e
+          npx tsc --noEmit --noUnusedLocals --noUnusedParameters --pretty false 2>&1 | tee tsc-no-unused.log
+          set -e
+          if grep -E 'src/(routes/_authenticated/trips\.\$tripId\.index|hooks/useTripHub(Data|Actions)|components/krew/TripHub(MembersSection|FinalRecap|JourneyView))' tsc-no-unused.log; then
+            echo "::error::Touched hub files have TypeScript/noUnused errors"
+            exit 1
+          fi
+      - name: Knip audit
+        run: |
+          set +e
+          npx --yes knip 2>&1 | tee knip.log
+          set -e
+          if grep -E 'src/(routes/_authenticated/trips\.\$tripId\.index|hooks/useTripHub(Data|Actions)|components/krew/TripHub(MembersSection|FinalRecap|JourneyView))' knip.log; then
+            echo "::error::Knip reports touched hub files"
+            exit 1
+          fi
