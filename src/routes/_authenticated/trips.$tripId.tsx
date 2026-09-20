@@ -14,18 +14,9 @@ import {
   KrewJourneyStatusPanel,
 } from "@/components/krew/KrewJourneyStatusPanel";
 import { ParticipantAvailabilityStep } from "@/components/krew/ParticipantAvailabilityStep";
-import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
 import { KrewPageShell, type KrewPageShellGutter, type KrewPageShellSize } from "@/components/krew/KrewPageShell";
-import { TripAccommodationPage } from "@/components/krew/TripAccommodationPage";
-import { TripDatesPage } from "@/components/krew/TripDatesPage";
-import { TripDestinationPage } from "@/components/krew/TripDestinationPage";
 import { TripInvitePage } from "@/components/krew/TripInvitePage";
-import { TripPackingPage } from "@/components/krew/TripPackingPage";
-import { TripPlanningPage } from "@/components/krew/TripPlanningPage";
-import { TripProfilePage } from "@/components/krew/TripProfilePage";
 import { TripStarAccessGate } from "@/components/krew/TripStarAccessGate";
-import { TripTasksPage } from "@/components/krew/TripTasksPage";
-import { TripTransportPage } from "@/components/krew/TripTransportPage";
 import { getTripAvailability } from "@/lib/availability.functions";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { getMyParticipantPreferences } from "@/lib/participant-preferences.functions";
@@ -328,36 +319,9 @@ function CompletedPreparationGate({
   );
 }
 
-function parseHrefSearch(href: string) {
-  const questionMarkIndex = href.indexOf("?");
-  if (questionMarkIndex === -1) return {} as Record<string, string>;
-  const hashIndex = href.indexOf("#", questionMarkIndex);
-  const queryString = href.slice(questionMarkIndex + 1, hashIndex === -1 ? undefined : hashIndex);
-  return Object.fromEntries(new URLSearchParams(queryString));
-}
-
 function TripLayout() {
   const { tripId } = Route.useParams();
   const location = useRouterState({ select: (state) => state.location });
-  const locationSearch =
-    location.search && typeof location.search === "object"
-      ? (location.search as Record<string, unknown>)
-      : {};
-  const hrefSearch = parseHrefSearch(location.href ?? "");
-  const view =
-    typeof locationSearch.view === "string"
-      ? locationSearch.view
-      : hrefSearch.view;
-  const section =
-    typeof locationSearch.section === "string"
-      ? locationSearch.section
-      : hrefSearch.section;
-  const hrefHasProfileSection = /(?:\?|&)section=profile(?:&|#|$)/.test(location.href ?? "");
-
-  const showPlanningPage = view === "voyage" && section === "planning";
-  const showProfilePage = section === "profile" || hrefHasProfileSection;
-  const showTasksPage = view === "voyage" && section === "tasks";
-  const showTransportPage = view === "voyage" && section === "transport";
   const showInvitePage = location.pathname.endsWith(`/trips/${tripId}/invite`);
   const showStarGate = location.pathname.endsWith(`/trips/${tripId}/star`);
   const showAvailabilityPage = location.pathname.endsWith(`/trips/${tripId}/availability`);
@@ -365,22 +329,6 @@ function TripLayout() {
   const showGatedDedicatedPage = ["profile", "dates", "destination", "accommodation", "transport"].some(
     (chapter) => location.pathname.endsWith(`/trips/${tripId}/${chapter}`),
   );
-
-  const legacyPreparationPage =
-    view === "voyage" && section === "dates" ? (
-      <TripDatesPage tripId={tripId} />
-    ) : view === "voyage" && section === "destination" ? (
-      <TripDestinationPage tripId={tripId} />
-    ) : view === "voyage" && section === "accommodation" ? (
-      <TripAccommodationPage tripId={tripId} />
-    ) : view === "voyage" && section === "packing" ? (
-      <TripPackingPage tripId={tripId} />
-    ) : null;
-
-  const gatedLegacyPreparationPage =
-    legacyPreparationPage && section !== "packing" ? (
-      <CompletedPreparationGate tripId={tripId}>{legacyPreparationPage}</CompletedPreparationGate>
-    ) : legacyPreparationPage;
 
   const outlet = showStarGate ? (
     <TripStarAccessGate tripId={tripId}>
@@ -404,30 +352,11 @@ function TripLayout() {
     <Outlet />
   );
 
-  return (
-    <>
-      {showInvitePage ? (
-        <CompletedPreparationGate tripId={tripId} externalStatus size="form" gutter="narrow">
-          <TripInvitePage tripId={tripId} />
-        </CompletedPreparationGate>
-      ) : showTasksPage ? (
-        <TripTasksPage tripId={tripId} />
-      ) : showTransportPage ? (
-        <CompletedPreparationGate tripId={tripId}>
-          <TripTransportPage tripId={tripId} />
-        </CompletedPreparationGate>
-      ) : showPlanningPage ? (
-        <TripPlanningPage tripId={tripId} />
-      ) : showProfilePage ? (
-        <CompletedPreparationGate tripId={tripId}>
-          <TripProfilePage tripId={tripId} />
-        </CompletedPreparationGate>
-      ) : gatedLegacyPreparationPage ? (
-        gatedLegacyPreparationPage
-      ) : (
-        outlet
-      )}
-      {showPlanningPage ? <PlanningMapSection tripId={tripId} /> : null}
-    </>
+  return showInvitePage ? (
+    <CompletedPreparationGate tripId={tripId} externalStatus size="form" gutter="narrow">
+      <TripInvitePage tripId={tripId} />
+    </CompletedPreparationGate>
+  ) : (
+    outlet
   );
 }
