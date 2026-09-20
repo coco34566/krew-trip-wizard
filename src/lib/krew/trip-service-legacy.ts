@@ -1934,10 +1934,28 @@ export async function generateRecommendationsForTrip(
           ? 130
           : Math.round(130 + (distanceKm - 1600) * 0.05);
 
-  const acceptedModesSet = new Set(
-    (ctx.transportModes ?? []).map((m) => m.toLowerCase().trim()),
+  const participantNameByUserId = new Map(
+    (participants ?? [])
+      .filter((participant: any) => participant?.user_id)
+      .map((participant: any) => [
+        participant.user_id,
+        participant.display_name || participant.email?.split("@")?.[0] || null,
+      ]),
   );
-  const hasModeConstraints = acceptedModesSet.size > 0 && !acceptedModesSet.has("peu importe");
+  const constrainedParticipants = (aggregated.individualPreferences ?? [])
+    .filter((preference: any) => Boolean(preference.submittedAt))
+    .map((preference: any) => ({
+      userId: preference.userId ?? null,
+      displayName: preference.isStar
+        ? (trip.data.celebrated_person || "Star")
+        : participantNameByUserId.get(preference.userId) ||
+          (preference.userId === trip.data.owner_id ? "Organisateur·rice" : null),
+      departureCity: preference.departureCity ?? null,
+      transportModes: preference.transportModes ?? [],
+      maxTravelHours: preference.maxTravelHours ?? null,
+    }))
+    .filter((preference) => hasDeclaredTravelConstraint(preference));
+
   const incompatibleDestinationIds = new Set<string>();
 
   for (const destination of catalogFinal.destinations) {
@@ -1946,61 +1964,62 @@ export async function generateRecommendationsForTrip(
     );
     if (!candidate) continue;
 
+    const distanceByCity = new Map<string, { distanceKm: number; estimated: boolean }>();
+    const distanceForCity = async (city: string) => {
+      const key = normCity(city);
+      const cached = distanceByCity.get(key);
+      if (cached) return cached;
+      const resolved = await resolveRouteDistanceKm({
+        originCity: city,
+        destinationName: destination.country
+          ? `${destination.name}, ${destination.country}`
+          : destination.name,
+        destinationLatitude: destination.latitude,
+        destinationLongitude: destination.longitude,
+        fallbackDistanceKm: destination.distance_from_paris_km,
+      });
+      distanceByCity.set(key, resolved);
+      if (resolved.estimated) {
+        providerErrors.push(
+          `[distance-estimated] ${city} → ${destination.name}: fallback utilisé`,
+        );
+      }
+      return resolved;
+    };
+
     let candidateIncompatible = false;
-
-    const byOrigin = originsForQuote.map((origin) => {
-      let candidateTransportInfo: { modes: string[]; approxHours: number } | undefined;
-      if (candidate.transport) {
-        const normOriginCity = normCity(origin.city);
-        for (const [key, val] of Object.entries(candidate.transport)) {
-          if (normCity(key) === normOriginCity) {
-            candidateTransportInfo = val;
-            break;
-          }
-        }
+    for (const participant of constrainedParticipants) {
+      if (!participant.departureCity?.trim()) continue;
+      const distance = await distanceForCity(participant.departureCity);
+      const transportInfo = findCandidateTransportForOrigin(
+        candidate.transport,
+        participant.departureCity,
+      );
+      const rejection = evaluateParticipantTravelConstraint({
+        participant,
+        distanceKm: distance.distanceKm,
+        candidateTransport: transportInfo,
+      });
+      if (rejection) {
+        candidateIncompatible = true;
+        providerErrors.push(
+          `[travel-constraint] ${destination.name}: ${rejection.reason}`,
+        );
+        break;
       }
+    }
 
-      if (candidateTransportInfo) {
-        const modes = (candidateTransportInfo.modes ?? []).map((m) => m.toLowerCase().trim());
-
-        if (modes.length > 0) {
-          if (ctx.planeRefused && modes.every((m) => m === "flight" || m === "avion")) {
-            candidateIncompatible = true;
-          } else if (hasModeConstraints) {
-            const hasAcceptedMode = modes.some((m) => {
-              if (ctx.planeRefused && (m === "flight" || m === "avion")) return false;
-              return (
-                acceptedModesSet.has(m) ||
-                (m === "flight" && acceptedModesSet.has("avion")) ||
-                (m === "train" && acceptedModesSet.has("train")) ||
-                (m === "car" && (acceptedModesSet.has("voiture") || acceptedModesSet.has("covoiturage")))
-              );
-            });
-            if (!hasAcceptedMode) {
-              candidateIncompatible = true;
-            }
-          } else if (ctx.planeRefused && modes.some((m) => m === "flight" || m === "avion") && !modes.some((m) => m !== "flight" && m !== "avion")) {
-            candidateIncompatible = true;
-          }
-        }
-
-        const maxHours = ctx.maxTravelDurationHours;
-        const durationHours = candidateTransportInfo.approxHours;
-        if (maxHours != null && maxHours > 0 && durationHours != null && durationHours > 0) {
-          if (durationHours > maxHours) {
-            candidateIncompatible = true;
-          }
-        }
-      }
-
-      const pricePerPerson = fallbackTransport(destination.distance_from_paris_km);
-
-      return {
-        city: origin.city,
-        count: origin.count,
-        pricePerPerson,
-      };
-    });
+    const byOrigin = await Promise.all(
+      originsForQuote.map(async (origin) => {
+        const distance = await distanceForCity(origin.city);
+        const pricePerPerson = fallbackTransport(distance.distanceKm);
+        return {
+          city: origin.city,
+          count: origin.count,
+          pricePerPerson,
+        };
+      }),
+    );
 
     if (candidateIncompatible) {
       incompatibleDestinationIds.add(destination.id);
