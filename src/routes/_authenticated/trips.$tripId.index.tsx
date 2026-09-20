@@ -22,8 +22,7 @@ import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   validateSearch: (search: Record<string, unknown>): { view: string; section?: string } => {
-    const view = typeof search["view"] === "string" ? search["view"] : "todo";
-    const section = typeof search["section"] === "string" ? search["section"] : undefined;
+    const view = typeof search["view"] === "string" ? search["view"] : "todo"; const section = typeof search["section"] === "string" ? search["section"] : undefined;
     return section ? { view, section } : { view };
   },
   beforeLoad: ({ params, search }) => {
