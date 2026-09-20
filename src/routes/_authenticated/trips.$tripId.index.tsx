@@ -264,7 +264,7 @@ function TripDetail() {
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
-          search={{ view: "todo", section: undefined }}
+          search={{ view: "todo" }}
           className={cn(
             "pb-1 transition-colors hover:text-foreground",
             currentView === "todo"
@@ -277,7 +277,7 @@ function TripDetail() {
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
-          search={{ view: "voyage", section: undefined }}
+          search={{ view: "voyage" }}
           className={cn(
             "pb-1 transition-colors hover:text-foreground",
             currentView === "voyage"
