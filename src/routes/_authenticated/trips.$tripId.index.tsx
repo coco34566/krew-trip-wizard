@@ -7,6 +7,7 @@ import { TripHubDashboard } from "@/components/krew/TripHubDashboard.entry";
 import { TripHubFinalRecap } from "@/components/krew/TripHubFinalRecap";
 import { TripHubJourneyView } from "@/components/krew/TripHubJourneyView";
 import { TripHubMembersSection } from "@/components/krew/TripHubMembersSection";
+import { TripParticipantFeedbackPage } from "@/components/krew/TripParticipantFeedbackPage";
 import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
@@ -109,6 +110,10 @@ function TripDetail() {
 
   const data = hub.data;
   const trip = hub.trip;
+
+  if (currentView === "feedback") {
+    return <TripParticipantFeedbackPage tripId={tripId} />;
+  }
 
   function buildWhatsAppStatusMessage() {
     const statusLines: string[] = [];
