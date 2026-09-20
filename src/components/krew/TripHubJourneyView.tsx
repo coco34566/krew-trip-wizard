@@ -1,6 +1,7 @@
 import { KrewJourneyTimeline } from "@/components/krew/KrewJourneyTimeline.entry";
-import type { TimelineStep } from "@/components/krew/KrewJourneyTimeline";
 import type { TripHubData } from "@/hooks/useTripHubData";
+
+type TimelineStep = Parameters<typeof KrewJourneyTimeline>[0]["steps"][number];
 import { PROFILE_LABELS, type StayProfileId } from "@/lib/krew/stay-profiles";
 
 export function TripHubJourneyView({
