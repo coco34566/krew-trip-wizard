@@ -58,8 +58,15 @@ function AuthPage() {
 
   function goAfterAuth() {
     if (safeNext && typeof window !== "undefined") {
-      window.location.replace(safeNext);
-      return;
+      try {
+        const target = new URL(safeNext, window.location.origin);
+        if (target.origin === window.location.origin) {
+          window.location.replace(safeNext);
+          return;
+        }
+      } catch {
+        // Fall through to the safe dashboard route.
+      }
     }
     navigate({ to: "/dashboard", replace: true });
   }
