@@ -20,6 +20,7 @@ import { getParticipantsProgress } from "@/lib/participant-progress.functions";
 import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { trackProductEvent } from "@/lib/product-analytics";
+import { isTripAdmin } from "@/lib/krew/engine";
 import {
   finalizeInvitationStep,
   getTripDetail,
@@ -72,6 +73,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
 
   const data = detailQuery.data as any;
   const trip = data?.trip as any;
+  const canManageTrip = Boolean(data && trip && isTripAdmin(trip, data.userId));
   const savedStarMode = trip?.group_logistics?.star_mode === "participant" ? "participant" : "secret";
   const savedStarPaysShare = trip?.group_logistics?.star_pays_share !== false;
 
@@ -197,7 +199,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     };
   });
   const secretStarRow =
-    savedStarMode === "secret" && secretStarSlot && data.isOwner
+    savedStarMode === "secret" && secretStarSlot && canManageTrip
       ? [{
           id: "star-secret-invite",
           user_id: null,
