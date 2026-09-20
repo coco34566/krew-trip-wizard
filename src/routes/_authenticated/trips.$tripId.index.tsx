@@ -2,6 +2,7 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
+import { Skeleton } from "@/components/ui/skeleton";
 import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard.entry";
 import { TripHubFinalRecap } from "@/components/krew/TripHubFinalRecap";
@@ -20,10 +21,11 @@ import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    view: (search.view as string) || "todo",
-    section: (search.section as string) || undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { view: string; section?: string } => {
+    const view = typeof search["view"] === "string" ? search["view"] : "todo";
+    const section = typeof search["section"] === "string" ? search["section"] : undefined;
+    return section ? { view, section } : { view };
+  },
   beforeLoad: ({ params, search }) => {
     switch (search.section) {
       case "dates": throw redirect({ to: "/trips/$tripId/dates", params: { tripId: params.tripId }, replace: true });
@@ -244,7 +246,10 @@ function TripDetail() {
   function buildWhatsAppRemindMessage() {
     const trip = tripPreview || {};
     const missingParticipants =
-      progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
+      progress?.participants?.filter(
+        (p: { hasAnswered?: boolean; hasAnsweredAvailability?: boolean }) =>
+          !p.hasAnswered || !p.hasAnsweredAvailability,
+      ) || [];
     const lines: string[] = [
       `Petit rappel pour « ${trip.name || "notre voyage"} »`,
       "",
@@ -459,7 +464,6 @@ function TripDetail() {
           <TripHubMembersSection
             data={data}
             trip={trip}
-            tripId={tripId}
             participants={participants}
             progress={progress}
             logistics={logistics}
