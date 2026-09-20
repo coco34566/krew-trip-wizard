@@ -88,4 +88,46 @@ describe("group response denominators", () => {
     expect(result.availabilityAnswered).toBe(6);
     expect(result.availabilityExpected).toBe(6);
   });
+  it("does not mark synthetic organizer or co-organizer as answered before submitted_at", async () => {
+    const trip = {
+      participants_count: 2,
+      celebrated_person: null,
+      has_star: false,
+      star_user_id: null,
+      owner_id: "owner-1",
+      co_organizer_id: "co-1",
+      group_logistics: {},
+    };
+    const draftPreferences = [
+      { user_id: "owner-1", submitted_at: null, updated_at: "2026-09-20T10:00:00Z", departure_city: "Paris" },
+      { user_id: "co-1", submitted_at: null, updated_at: "2026-09-20T10:00:00Z", departure_city: "Lyon" },
+    ];
+    const supabase = {
+      from(table: string) {
+        let data: any = [];
+        if (table === "trips") data = trip;
+        if (table === "trip_participants") data = [];
+        if (table === "trip_participant_preferences") data = draftPreferences;
+        if (table === "trip_availability") data = [];
+        if (table === "trip_star_preferences") data = null;
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          maybeSingle: async () => ({ data, error: null }),
+          then: (resolve: (value: any) => unknown) => resolve({ data, error: null }),
+        };
+        return chain as any;
+      },
+    } as any;
+
+    const result = await getParticipantsProgressHelper(supabase, "trip-1");
+    const owner = result.participants.find((participant: any) => participant.user_id === "owner-1");
+    const coOrganizer = result.participants.find((participant: any) => participant.user_id === "co-1");
+
+    expect(owner?.hasAnswered).toBe(false);
+    expect(coOrganizer?.hasAnswered).toBe(false);
+    expect(owner?.answeredAt).toBeNull();
+    expect(coOrganizer?.answeredAt).toBeNull();
+  });
+
 });
