@@ -1345,6 +1345,7 @@ export async function generateRecommendationsForTrip(
   const briefContext = await getDestinationBriefContext(supabase, tripId);
   const {
     trip: tripData,
+    participants,
     readiness,
     aggregated,
     resolvedDestination,
