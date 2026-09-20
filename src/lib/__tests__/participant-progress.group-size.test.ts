@@ -64,7 +64,17 @@ describe("group response denominators", () => {
         const chain = { select: () => chain, eq: () => chain, then: (resolve: (value: any) => unknown) => resolve({ data: participants, error: null }) };
         return chain as any;
       }
-      if (table === "trip_participant_preferences" || table === "trip_availability") {
+      if (table === "trip_participant_preferences") {
+        const rows = Array.from({ length: 6 }, (_, index) => ({
+          user_id: index === 0 ? "owner-1" : `user-${index + 1}`,
+          submitted_at: "2026-09-20T09:00:00Z",
+          updated_at: "2026-09-20T09:00:00Z",
+          departure_city: "Paris",
+        }));
+        const chain = { select: () => chain, eq: () => chain, then: (resolve: (value: any) => unknown) => resolve({ data: rows, error: null }) };
+        return chain as any;
+      }
+      if (table === "trip_availability") {
         const rows = Array.from({ length: 6 }, (_, index) => ({ user_id: index === 0 ? "owner-1" : `user-${index + 1}` }));
         const chain = { select: () => chain, eq: () => chain, then: (resolve: (value: any) => unknown) => resolve({ data: rows, error: null }) };
         return chain as any;
