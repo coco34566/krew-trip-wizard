@@ -1,3 +1,6 @@
+import { chmod, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { chromium, type Page, type Request } from "@playwright/test";
 import { qa, signIn } from "./helpers";
 import { belongsToCurrentE2ERun, ensureE2ERunToken, isTestTripName } from "./test-trip-constants";
@@ -18,6 +21,22 @@ type SupabaseRestSession = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const LEFTOVER_WARNING_THRESHOLD = 10;
+
+function cleanupRunKey() {
+  return (
+    process.env.KREW_E2E_RUN_TOKEN ||
+    [process.env.GITHUB_RUN_ID, process.env.GITHUB_RUN_ATTEMPT].filter(Boolean).join("-") ||
+    "local"
+  ).replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function cleanupSessionPath() {
+  return join(tmpdir(), `krew-e2e-cleanup-session-${cleanupRunKey()}.json`);
+}
+
+function cleanupStartupMarkerPath() {
+  return join(tmpdir(), `krew-e2e-cleanup-started-${cleanupRunKey()}.marker`);
+}
 
 function warn(message: string, error?: unknown) {
   console.warn(`[KREW E2E cleanup] ${message}`, error ?? "");
@@ -52,7 +71,33 @@ async function captureSupabaseRequest(request: Request) {
   return { origin: new URL(request.url()).origin, apiKey };
 }
 
+async function readCachedRestSession(): Promise<SupabaseRestSession | null> {
+  try {
+    const raw = await readFile(cleanupSessionPath(), "utf8");
+    const parsed = JSON.parse(raw) as Partial<SupabaseRestSession>;
+    if (
+      typeof parsed.origin === "string" &&
+      typeof parsed.apiKey === "string" &&
+      typeof parsed.accessToken === "string" &&
+      typeof parsed.userId === "string"
+    ) {
+      return parsed as SupabaseRestSession;
+    }
+  } catch {
+    // First Playwright invocation in the run has no cached cleanup session yet.
+  }
+  return null;
+}
+
+async function cacheRestSession(session: SupabaseRestSession) {
+  const path = cleanupSessionPath();
+  await writeFile(path, JSON.stringify(session), "utf8");
+  await chmod(path, 0o600).catch(() => undefined);
+}
+
 async function getAuthenticatedRestSession(): Promise<SupabaseRestSession | null> {
+  const cached = await readCachedRestSession();
+  if (cached) return cached;
   if (!qa.email || !qa.password) {
     warn("KREW_E2E_EMAIL/KREW_E2E_PASSWORD are not configured; cleanup skipped.");
     return null;
@@ -86,12 +131,14 @@ async function getAuthenticatedRestSession(): Promise<SupabaseRestSession | null
       return null;
     }
 
-    return {
+    const session = {
       origin: captured.origin,
       apiKey: captured.apiKey,
       accessToken: browserSession.accessToken,
       userId: browserSession.userId,
     };
+    await cacheRestSession(session);
+    return session;
   } finally {
     await context.close();
     await browser.close();
@@ -163,6 +210,18 @@ async function deleteMatchingTrips(session: SupabaseRestSession, predicate: (tri
 
 export async function runE2EStartupCleanup() {
   ensureE2ERunToken();
+
+  try {
+    await readFile(cleanupStartupMarkerPath(), "utf8");
+    return;
+  } catch {
+    // First Playwright invocation in this run.
+  }
+
+  // Mark before authenticating so one transient cleanup failure cannot cause a new
+  // Supabase Auth login on every separate `playwright test` command in the job.
+  await writeFile(cleanupStartupMarkerPath(), new Date().toISOString(), "utf8").catch(() => undefined);
+
   try {
     const session = await getAuthenticatedRestSession();
     if (!session) return;
@@ -181,8 +240,11 @@ export async function runE2EStartupCleanup() {
 
 export async function runE2ETeardownCleanup() {
   try {
-    const session = await getAuthenticatedRestSession();
-    if (!session) return;
+    const session = await readCachedRestSession();
+    if (!session) {
+      warn("No cached cleanup session is available; teardown cleanup skipped without re-authenticating.");
+      return;
+    }
 
     const deleted = await deleteMatchingTrips(session, (trip) => belongsToCurrentE2ERun(trip.name));
     if (deleted > 0) warn(`Removed ${deleted} trip(s) created by this E2E run.`);
