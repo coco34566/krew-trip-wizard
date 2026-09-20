@@ -84,6 +84,10 @@ export const getStarPreferences = createServerFn({ method: "GET" })
             weatherPreference: prefs.data.weather_preference ?? 1,
             localMobility: (prefs.data as any).local_mobility ?? null,
             accommodationRole: (prefs.data as any).accommodation_role ?? null,
+            transportModeAccepted: (prefs.data as any).transport_mode_accepted?.length
+              ? (prefs.data as any).transport_mode_accepted
+              : ["peu importe"],
+            maxTravelDurationHours: (prefs.data as any).max_travel_duration_hours ?? null,
           }
         : null,
       starMode,
@@ -114,6 +118,8 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
           .enum(["base_only", "part_of_stay", "centerpiece"])
           .optional()
           .nullable(),
+        transportModeAccepted: z.array(z.enum(["avion", "train", "voiture", "peu importe"])).default(["peu importe"]),
+        maxTravelDurationHours: z.number().min(2).max(12).optional().nullable(),
       })
       .parse(data),
   )
@@ -180,6 +186,8 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
       weather_preference: data.weatherPreference ?? 1,
       local_mobility: data.localMobility ?? null,
       accommodation_role: data.accommodationRole ?? null,
+      transport_mode_accepted: data.transportModeAccepted,
+      max_travel_duration_hours: data.maxTravelDurationHours ?? null,
     };
 
     const { error } = await supabase
