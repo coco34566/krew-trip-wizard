@@ -1,7 +1,6 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Trash2, Wallet } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard.entry";
@@ -18,9 +17,9 @@ import { cn } from "@/lib/utils";
 import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    view: (search.view as string) || "todo",
-    section: (search.section as string) || undefined,
+  validateSearch: (search: Record<string, unknown>): { view: string; section?: string } => ({
+    view: (search["view"] as string) || "todo",
+    ...(typeof search["section"] === "string" ? { section: search["section"] } : {}),
   }),
   beforeLoad: ({ params, search }) => {
     switch (search.section) {
@@ -146,7 +145,12 @@ function TripDetail() {
       statusLines.push(`💰 Budget estimé : ~${hub.liveBudget.total} € / pers.`);
     }
 
-    for (const participant of hub.progress?.participants ?? []) {
+    for (const participant of (hub.progress?.participants ?? []) as Array<{
+      display_name?: string | null;
+      email?: string | null;
+      hasAnsweredAvailability?: boolean;
+      hasAnswered?: boolean;
+    }>) {
       if (!participant.hasAnsweredAvailability) {
         pendingActions.push({ name: nameOf(participant), action: "disponibilités" });
       }
@@ -214,7 +218,12 @@ function TripDetail() {
   function buildWhatsAppRemindMessage() {
     const missingParticipants =
       hub.progress?.participants?.filter(
-        (participant) =>
+        (participant: {
+          display_name?: string | null;
+          email?: string | null;
+          hasAnsweredAvailability?: boolean;
+          hasAnswered?: boolean;
+        }) =>
           !participant.hasAnswered || !participant.hasAnsweredAvailability,
       ) || [];
     const lines = [
@@ -255,7 +264,7 @@ function TripDetail() {
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
-          search={{ view: "todo" }}
+          search={{ view: "todo", section: undefined }}
           className={cn(
             "pb-1 transition-colors hover:text-foreground",
             currentView === "todo"
@@ -268,7 +277,7 @@ function TripDetail() {
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
-          search={{ view: "voyage" }}
+          search={{ view: "voyage", section: undefined }}
           className={cn(
             "pb-1 transition-colors hover:text-foreground",
             currentView === "voyage"
