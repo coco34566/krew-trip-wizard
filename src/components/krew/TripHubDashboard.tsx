@@ -8,7 +8,7 @@ import { TripWeatherBadge } from "@/components/krew/TripWeatherBadge";
 import { TripLiveModePanel, isTripLiveMode } from "@/components/krew/TripLiveModePanel";
 import { TransportGroupsSummary } from "@/components/krew/TransportGroupsSummary";
 import { getTripWeather } from "@/lib/trip-weather.functions";
-import { getKrewPulse, getTripCountdown, type KrewPulse, type TripCountdown } from "@/lib/krew/trip-dashboard-pulse";
+import { getTripCountdown, type TripCountdown } from "@/lib/krew/trip-countdown";
 import {
   KrewIcon,
   KrewMark,
@@ -393,30 +393,6 @@ function CountdownInline({ countdown }: { countdown: TripCountdown }) {
   );
 }
 
-function KrewPulseLine({ pulse }: { pulse: KrewPulse }) {
-  return (
-    <div className="mt-4 px-4">
-      <div className="flex min-w-0 items-start gap-2.5 border-t border-sage/25 pt-3">
-        <span
-          aria-hidden="true"
-          className={`mt-[7px] size-2 shrink-0 rounded-full ${pulse.state === "ready" ? "bg-sage" : "bg-primary/70"}`}
-        />
-        <div className="min-w-0 flex-1 sm:flex sm:items-baseline sm:gap-2.5">
-          <span className="block shrink-0 font-sans text-[10px] font-bold uppercase tracking-[0.14em] text-primary/75">
-            Krew Pulse
-          </span>
-          <p className="mt-0.5 font-sans text-[13px] font-medium leading-snug text-foreground sm:mt-0 sm:text-sm">
-            {pulse.message}
-          </p>
-        </div>
-        {pulse.state === "ready" ? (
-          <KrewMark type="check" tone="sage" size="sm" className="mt-0.5 size-4 shrink-0" />
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 export function TripHubDashboard({
   tripId,
   trip,
@@ -477,13 +453,7 @@ export function TripHubDashboard({
     viewerUserId && (logistics.transportPicks ?? []).some((v: any) => v.userId === viewerUserId),
   );
   const hotelOffersReady = Boolean(logistics.hotels?.length);
-  const hotelSelected = Boolean(logistics.selectedHotelId);
   const transportOffersReady = Boolean(logistics.transports?.length);
-  const transportPickedCount = new Set(
-    (logistics.transportPicks ?? [])
-      .map((pick: any) => pick?.participantId || pick?.userId)
-      .filter(Boolean),
-  ).size;
   const transportExpectedCount = progressTotal || availabilityExpected || participantsCount || trip.participants_count || 0;
   const dashboardTransportParticipants = Array.isArray((trip as any).participants)
     ? [...((trip as any).participants as any[])]
@@ -501,22 +471,6 @@ export function TripHubDashboard({
     });
   }
 
-  const pulse = getKrewPulse({
-    availabilityAnswered,
-    availabilityExpected,
-    preferencesAnswered: progressAnswered,
-    preferencesExpected: progressTotal || trip.participants_count || 1,
-    datesLocked,
-    profileReady,
-    profileValidated,
-    destinationSelected,
-    hotelOffersReady,
-    hotelSelected,
-    transportOffersReady,
-    transportPickedCount,
-    transportExpectedCount,
-    hasItinerary,
-  });
 
   const countdown = getTripCountdown({
     datesLocked,
@@ -657,8 +611,7 @@ export function TripHubDashboard({
           ) : null}
         </div>
 
-        {!liveMode ? <KrewPulseLine pulse={pulse} /> : null}
-        <div className={liveMode ? "h-4" : "h-8"} />
+        <div className="h-4" />
       </header>
 
       {liveMode ? (

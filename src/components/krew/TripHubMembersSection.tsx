@@ -317,7 +317,7 @@ export function TripHubMembersSection({
               <span>Voir les retours du groupe</span>
             </Link>
           </Button>
-          <Button type="button" variant="ghost" className="w-auto justify-start" onClick={onRemind}>
+          <Button type="button" variant="ghost" className="inline-flex w-auto items-center justify-start gap-2 text-left" onClick={onRemind}>
             <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" />
             <span>Relancer le groupe</span>
           </Button>

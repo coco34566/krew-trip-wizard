@@ -248,8 +248,10 @@ test("TripHub matches the approved D1 hero-title scale", async ({ browser }, tes
         currentSize: await renderedPrimaryTitleSize(current.page),
         beforeSize: await renderedPrimaryTitleSize(before.page),
         expectedCurrentSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
-        // PR #387 D1 is now the main baseline.
+        // PR #387 D1 is now the main baseline. This PR intentionally removes
+        // the Krew Pulse row, so only the TripHub dashboard raster is expected to change.
         expectedBeforeSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
+        expectedVisualChange: true,
       });
     }
   } finally {
