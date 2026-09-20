@@ -1,0 +1,32 @@
+name: Hub Migration Validation
+
+on:
+  push:
+    branches: [audit/hub-migration-validation]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: TypeScript noUnusedLocals/noUnusedParameters
+        run: |
+          npx tsc --noEmit --noUnusedLocals --noUnusedParameters --pretty false > /tmp/tsc-unused.log 2>&1 || true
+          cat /tmp/tsc-unused.log
+          if grep -E 'src/(hooks/useTripHub(Data|Actions)|components/krew/TripHub(MembersSection|FinalRecap|JourneyView)|routes/_authenticated/trips\.\$tripId\.index)\.tsx?' /tmp/tsc-unused.log; then
+            echo "Changed hub files contain TypeScript/noUnused errors"
+            exit 1
+          fi
+      - name: Knip
+        continue-on-error: true
+        run: |
+          npx --yes knip --reporter json > /tmp/knip.json || true
+          cat /tmp/knip.json
+      - name: Route line count
+        run: wc -l 'src/routes/_authenticated/trips.$tripId.index.tsx'
