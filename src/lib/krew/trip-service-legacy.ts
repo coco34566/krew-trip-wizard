@@ -1420,6 +1420,7 @@ export async function generateRecommendationsForTrip(
 
   const catalogQuery = {
     maxDistanceKm: ctx.maxDistanceKm,
+    applyDistanceFilter: false,
     excludedCountries: ctx.excludedCountries,
     participants: ctx.participants,
     nights: ctx.nights,
