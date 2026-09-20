@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link, Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -22,7 +23,7 @@ function AnswerLine({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   if (children === null || children === undefined || children === "") return null;
   return (
