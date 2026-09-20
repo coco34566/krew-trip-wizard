@@ -7,6 +7,13 @@ import { isInactiveResponseParticipant } from "@/lib/krew/response-progress";
 
 const inputSchema = z.object({ tripId: z.string().uuid() });
 
+export function isOrganizerFeedbackAdmin(
+  trip: { owner_id?: string | null; co_organizer_id?: string | null },
+  userId: string,
+) {
+  return trip.owner_id === userId || trip.co_organizer_id === userId;
+}
+
 const median = (values: number[]) => {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -46,8 +53,7 @@ export const getOrganizerQuestionnaireFeedback = createServerFn({ method: "GET" 
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
 
-    const isAdmin =
-      tripRes.data.owner_id === userId || tripRes.data.co_organizer_id === userId;
+    const isAdmin = isOrganizerFeedbackAdmin(tripRes.data, userId);
     if (!isAdmin) {
       throw new Error("403 Forbidden: réservé à l’organisateur et au co-organisateur");
     }
