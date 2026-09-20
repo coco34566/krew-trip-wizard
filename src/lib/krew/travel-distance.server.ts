@@ -1,5 +1,5 @@
-import { geocodeDestination, haversineKm } from "@/integrations/external/geo-weather.server";
-import { estimateDistanceKm } from "./deep-links";
+import { geocodeDestination } from "@/integrations/external/geo-weather.server";
+import { estimateDistanceKm, estimateDistanceKmFromCoordinates } from "./deep-links";
 
 export type RouteDistanceEstimate = {
   distanceKm: number;
@@ -37,7 +37,7 @@ export async function resolveRouteDistanceKm(input: {
 
   if (origin && destination) {
     return {
-      distanceKm: haversineKm(
+      distanceKm: estimateDistanceKmFromCoordinates(
         { lat: origin.latitude, lon: origin.longitude },
         { lat: destination.latitude, lon: destination.longitude },
       ),
