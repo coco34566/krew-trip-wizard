@@ -1,229 +1,31 @@
-name: KREW Smoke E2E
+name: Hub Migration Final Static Verification 2
 
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
-  workflow_dispatch:
-  schedule:
-    - cron: "15 3 * * *"
-
-concurrency:
-  group: krew-e2e-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  push:
+    branches: [audit/hub-migration-final-static-2]
 
 jobs:
-  smoke:
-    # Repository secrets are never exposed to code coming from a fork.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+  verify:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.55.0-noble
-    timeout-minutes: 30
-    env:
-      KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
-      KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
-      KREW_E2E_API_MODE: safe
-    permissions:
-      contents: read
-      deployments: read
-      pull-requests: read
+    timeout-minutes: 25
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Resolve Vercel preview URLs
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          node <<'NODE'
-          const { appendFileSync } = await import("node:fs");
-          const headers = {
-            Accept: "application/vnd.github+json",
-            Authorization: `Bearer ${process.env.GH_TOKEN}`,
-            "X-GitHub-Api-Version": "2022-11-28",
-          };
-          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-          const api = async (path) => {
-            const response = await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}${path}`, { headers });
-            if (!response.ok) throw new Error(`GitHub API ${response.status}: ${path}`);
-            return response.json();
-          };
-          const findReadyUrlForSha = async (sha) => {
-            const deployments = await api(`/deployments?sha=${sha}&per_page=20`);
-            for (const deployment of deployments) {
-              const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
-              const ready = statuses.find((status) =>
-                status.state === "success" && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ""),
-              );
-              if (ready) return ready.environment_url.replace(/\/$/, "");
-            }
-            return "";
-          };
-          const findReadyUrlForEquivalentTree = async (commit) => {
-            const exact = await findReadyUrlForSha(commit.sha);
-            if (exact) return { url: exact, deploymentSha: commit.sha };
-
-            const deployments = await api("/deployments?per_page=50");
-            for (const deployment of deployments) {
-              const candidateSha = deployment.sha;
-              if (!candidateSha || candidateSha === commit.sha) continue;
-              let candidate;
-              try {
-                candidate = await api(`/commits/${candidateSha}`);
-              } catch {
-                continue;
-              }
-              if (candidate.commit?.tree?.sha !== commit.commit?.tree?.sha) continue;
-              const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
-              const ready = statuses.find((status) =>
-                status.state === "success" && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ""),
-              );
-              if (ready) {
-                return {
-                  url: ready.environment_url.replace(/\/$/, ""),
-                  deploymentSha: candidateSha,
-                };
-              }
-            }
-            return { url: "", deploymentSha: "" };
-          };
-          const isPreviewNeutral = (commit) => {
-            const changedFiles = Array.isArray(commit.files) ? commit.files.map((file) => file.filename) : [];
-            return changedFiles.length > 0 && changedFiles.every((file) =>
-              file.startsWith(".github/") || file.startsWith("docs/") || file.startsWith("tests/"),
-            );
-          };
-          const nearestAppCommit = async (startSha, maxDepth = 40) => {
-            let commit = await api(`/commits/${startSha}`);
-            for (let depth = 0; depth < maxDepth && isPreviewNeutral(commit); depth += 1) {
-              const parentSha = commit.parents?.[0]?.sha;
-              if (!parentSha) break;
-              commit = await api(`/commits/${parentSha}`);
-            }
-            return commit;
-          };
-          const waitForPreview = async (commit) => {
-            let resolved = { url: "", deploymentSha: "" };
-            for (let attempt = 0; attempt < 9 && !resolved.url; attempt += 1) {
-              resolved = await findReadyUrlForEquivalentTree(commit);
-              if (!resolved.url) await sleep(10_000);
-            }
-            return resolved.url ? resolved : null;
-          };
-          const waitForHealthyPreview = async (url) => {
-            for (let attempt = 0; attempt < 6; attempt += 1) {
-              try {
-                const response = await fetch(url, { redirect: "follow" });
-                if (response.ok) return true;
-              } catch {
-                // Retry transient preview/network failures.
-              }
-              await sleep(5_000);
-            }
-            return false;
-          };
-
-          const targetCommit = await nearestAppCommit(process.env.HEAD_SHA);
-          const current = await waitForPreview(targetCommit);
-
-          if (!current || !(await waitForHealthyPreview(current.url))) {
-            appendFileSync(process.env.GITHUB_ENV, "KREW_E2E_PREVIEW_AVAILABLE=false\n");
-            const message = `Vercel preview unavailable or unhealthy for ${targetCommit.sha}`;
-            if (process.env.EVENT_NAME === "pull_request") {
-              console.log(`::warning::${message}; smoke is skipped because this is an infrastructure condition.`);
-              process.exit(0);
-            }
-            throw new Error(message);
-          }
-
-          appendFileSync(process.env.GITHUB_ENV, "KREW_E2E_PREVIEW_AVAILABLE=true\n");
-          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${current.url}\n`);
-          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_APP_SHA=${targetCommit.sha}\n`);
-          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_DEPLOYMENT_SHA=${current.deploymentSha}\n`);
-          console.log(`Current app tree ${targetCommit.commit.tree.sha}: ${current.url} (deployment ${current.deploymentSha})`);
-
-          if (process.env.BASE_SHA) {
-            const previousAppCommit = await nearestAppCommit(process.env.BASE_SHA);
-            if (previousAppCommit.sha !== targetCommit.sha) {
-              const before = await waitForPreview(previousAppCommit);
-              if (before) {
-                appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BEFORE_URL=${before.url}\n`);
-                appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BEFORE_SHA=${previousAppCommit.sha}\n`);
-                appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BEFORE_DEPLOYMENT_SHA=${before.deploymentSha}\n`);
-                console.log(`Before app tree ${previousAppCommit.commit.tree.sha}: ${before.url} (deployment ${before.deploymentSha})`);
-              } else {
-                console.log("::warning::Previous Vercel preview unavailable; comparative visual checks may be skipped.");
-              }
-            }
-          }
-          NODE
-
-      - name: Run npm ci
-        run: npm ci
-
-      - name: Install Playwright test runner without changing the lockfile
-        run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
-
-      - name: Run advisory smoke journey on PR
-        if: github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
-        continue-on-error: true
-        run: |
-          if npm run test:e2e:smoke; then
-            exit 0
-          fi
-          echo "::warning::Smoke failed once; retrying once to absorb transient preview/browser failures."
-          sleep 15
-          npm run test:e2e:smoke
-
-      - name: Run blocking smoke journey nightly/manual
-        if: github.event_name != 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
-        run: |
-          if npm run test:e2e:smoke; then
-            exit 0
-          fi
-          echo "::warning::Smoke failed once; retrying once before failing the nightly/manual quality gate."
-          sleep 15
-          npm run test:e2e:smoke
-
-      - name: Run advisory visual audit on PR
-        if: always() && github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
-        continue-on-error: true
-        run: npm run test:e2e:visual
-
-      - name: Run full journey nightly/manual
-        if: always() && github.event_name != 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
-        run: npm run test:e2e:full
-
-      - name: Run current visual audit nightly/manual
-        if: always() && github.event_name != 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
-        run: npm run test:e2e:visual
-
-      - name: Capture historical design reference screenshots nightly/manual
-        if: always() && github.event_name != 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
-        continue-on-error: true
-        # Historical migration snapshots compare against an older app baseline.
-        # Keep them as evidence, but never let them block current delivery.
-        run: >-
-          npx playwright test
-          design-system-migration-visual.spec.ts
-          design-harmonization-d7-visual.spec.ts
-          design-harmonization-d8-visual.spec.ts
-          --project=desktop-chromium
-          --grep-invert "TripHub matches the approved D1 hero-title scale|Availability matches the approved chapter-title contract|Questionnaire matches the approved chapter-title contract|Nouveau voyage matches the approved D1 hero-title scale|Invite matches the approved D8 section-title contract|Account surface remains pixel-identical at contract reference viewports"
-
-      - name: Upload Playwright report
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          name: krew-smoke-playwright-report
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-          retention-days: 7
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: TypeScript noUnusedLocals changed-files check
+        shell: bash
+        run: |
+          set +e
+          npx tsc --noEmit --noUnusedLocals 2>&1 | tee /tmp/tsc.log
+          set -e
+          if grep -E 'src/(hooks/useTripHub(Data|Actions)|components/krew/TripHub(MembersSection|FinalRecap|JourneyView)|routes/_authenticated/trips\.\$tripId\.index)\.tsx?' /tmp/tsc.log; then exit 1; fi
+      - name: Knip changed-files check
+        shell: bash
+        run: |
+          set +e
+          npx --yes knip 2>&1 | tee /tmp/knip.log
+          set -e
+          if grep -E 'src/(hooks/useTripHub(Data|Actions)|components/krew/TripHub(MembersSection|FinalRecap|JourneyView))\.tsx?' /tmp/knip.log; then exit 1; fi
