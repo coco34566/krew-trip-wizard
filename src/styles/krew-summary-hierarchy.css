@@ -18,7 +18,7 @@
   order: 0;
 }
 
-/* Dashboard rhythm: keep the Pulse, next action, secondary actions and shortcuts
+/* Dashboard rhythm: keep the next action, secondary actions and shortcuts
  * visually connected instead of leaving large blank bands between them. */
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] > div > [class~="space-y-6"] > * + * {
   margin-top: .625rem !important;
