@@ -178,4 +178,16 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
 export const getParticipantsProgress = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
-  .handler(async ({ data, context }) => getParticipantsProgressHelper(context.supabase, data.tripId));
+  .handler(async ({ data, context }) => {
+    const access = await context.supabase
+      .from("trips")
+      .select("id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+
+    if (access.error) throw access.error;
+    if (!access.data) throw new Error("403 Forbidden");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    return getParticipantsProgressHelper(supabaseAdmin, data.tripId);
+  });
