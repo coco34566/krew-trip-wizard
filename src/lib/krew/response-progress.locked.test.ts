@@ -19,7 +19,7 @@ describe("locked response phase", () => {
         { user_id: null, status: "à inviter" },
         { user_id: null, status: "à inviter" },
       ],
-      preferenceUserIds: [ownerId, lateParticipantId],
+      preferenceRows: [{ user_id: ownerId, submitted_at: "2026-09-20T09:00:00Z" }, { user_id: lateParticipantId, submitted_at: "2026-09-20T09:00:00Z" }],
       availabilityUserIds: [ownerId],
     });
 
