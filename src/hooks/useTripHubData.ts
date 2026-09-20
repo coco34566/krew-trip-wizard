@@ -20,7 +20,7 @@ import type { StayConcept } from "@/lib/krew/stay-profiles";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 
-export type HubRecommendation = {
+type HubRecommendation = {
   id: string;
   score: number;
   rationale: string | null;
