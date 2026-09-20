@@ -99,7 +99,7 @@ describe("TripParticipantFeedbackPage", () => {
     expect(screen.getByText("Bob")).toBeTruthy();
     expect(screen.getByText("Questionnaire non soumis")).toBeTruthy();
     expect(screen.getByText("1/2 l’acceptent")).toBeTruthy();
-    expect(screen.getByText("450 € / pers.")).toBeTruthy();
+    expect(screen.getAllByText("450 € / pers.")).toHaveLength(2);
     expect(screen.getByText("J’aimerais éviter de courir partout.")).toBeTruthy();
   });
 
