@@ -134,12 +134,17 @@ describe("getParticipantsProgress", () => {
         group_logistics: { star_mode: "secret" },
       };
 
+      const submittedPreferences = preferences.map((row) => ({
+        submitted_at: "2026-09-20T09:00:00Z",
+        ...row,
+      }));
+
       return {
         from: (table: string) => {
           let data: any = [];
           if (table === "trips") data = tripsData;
           else if (table === "trip_participants") data = participants;
-          else if (table === "trip_participant_preferences") data = preferences;
+          else if (table === "trip_participant_preferences") data = submittedPreferences;
           else if (table === "trip_availability") data = availabilities;
           else if (table === "trip_star_preferences") data = starPrefs;
 
