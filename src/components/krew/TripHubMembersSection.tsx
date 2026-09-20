@@ -308,7 +308,11 @@ export function TripHubMembersSection({
       {data.isOwner ? (
         <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border/40">
           <Button asChild variant="outline" className="w-auto justify-start">
-            <Link to="/trips/$tripId/feedback" params={{ tripId: trip.id }}>
+            <Link
+              to="/trips/$tripId"
+              params={{ tripId: trip.id }}
+              search={{ view: "feedback" }}
+            >
               <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
               <span>Voir les retours du groupe</span>
             </Link>
