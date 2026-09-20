@@ -13,18 +13,29 @@ const CHAPTERS = [
 ] as const;
 
 async function dashboardTripIds(page: Page) {
-  await page.goto("/dashboard");
-  await handleNormalUserUi(page);
-  await expect(page.locator("main")).toBeVisible();
-  const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) =>
-    links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""),
-  );
-  const ids: string[] = [];
-  for (const href of hrefs) {
-    const match = href.match(/\/trips\/([0-9a-f-]{36})(?:[/?#]|$)/i);
-    if (match?.[1] && !ids.includes(match[1])) ids.push(match[1]);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" }).catch((error) => {
+      if (!String(error).includes("interrupted by another navigation")) throw error;
+    });
+    await handleNormalUserUi(page);
+    await expect(page.locator("main")).toBeVisible({ timeout: 20_000 });
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+    await page
+      .waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 15_000 })
+      .catch(() => undefined);
+
+    const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) =>
+      links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""),
+    );
+    const ids: string[] = [];
+    for (const href of hrefs) {
+      const match = href.match(/\/trips\/([0-9a-f-]{36})(?:[/?#]|$)/i);
+      if (match?.[1] && !ids.includes(match[1])) ids.push(match[1]);
+    }
+    if (ids.length > 0) return ids.slice(0, 20);
+    await page.waitForTimeout(750);
   }
-  return ids.slice(0, 20);
+  return [];
 }
 
 async function findHubLink(page: Page, chapter: string) {
