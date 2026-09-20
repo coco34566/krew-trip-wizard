@@ -37,9 +37,11 @@ export async function resolveRouteDistanceKm(input: {
 
   if (origin && destination) {
     return {
-      distanceKm: estimateDistanceKmFromCoordinates(
-        { lat: origin.latitude, lon: origin.longitude },
-        { lat: destination.latitude, lon: destination.longitude },
+      distanceKm: Math.round(
+        estimateDistanceKmFromCoordinates(
+          { lat: origin.latitude, lon: origin.longitude },
+          { lat: destination.latitude, lon: destination.longitude },
+        ),
       ),
       estimated: false,
     };
