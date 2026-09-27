@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import heroImage from "@/assets/hero-krew.jpg";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +74,7 @@ function useLandingReveal() {
 
 function Landing() {
   useLandingReveal();
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   return (
     <div className="min-h-screen bg-background font-sans text-foreground antialiased selection:bg-primary/10 selection:text-primary">
@@ -97,7 +99,11 @@ function Landing() {
                     <Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer mon voyage</Link>
                   </Button>
                   <Button asChild variant="ghost" size="lg" className="h-10 rounded-xl px-5 text-muted-foreground hover:text-foreground">
-                    <Link to="/auth" search={{}}>Se connecter</Link>
+                    {isAuthenticated && !authLoading ? (
+                      <Link to="/dashboard">Voir mes voyages</Link>
+                    ) : (
+                      <Link to="/auth" search={{}}>Se connecter</Link>
+                    )}
                   </Button>
                 </div>
                 <ul className="pt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-foreground">
