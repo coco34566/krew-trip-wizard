@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.55.0-noble
-    timeout-minutes: 30
+    timeout-minutes: 15
     env:
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
@@ -33,6 +33,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Resolve Vercel preview URLs
+        timeout-minutes: 3
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -119,7 +120,28 @@ jobs:
             for (let attempt = 0; attempt < 6; attempt += 1) {
               try {
                 const response = await fetch(url, { redirect: "follow" });
-                if (response.ok) return true;
+                if (response.ok) {
+                  const html = await response.text();
+                  const assetPaths = [...html.matchAll(/(?:src|href)=["\u0027]([^"\u0027]+\/assets\/[^"\u0027]+)["\u0027]/gi)]
+                    .map((match) => match[1])
+                    .filter(Boolean)
+                    .slice(0, 12);
+                  const assetResults = await Promise.all(
+                    assetPaths.map(async (assetPath) => {
+                      const assetUrl = new URL(assetPath, url).toString();
+                      try {
+                        const assetResponse = await fetch(assetUrl, { redirect: "follow" });
+                        return { assetUrl, ok: assetResponse.ok, status: assetResponse.status };
+                      } catch (error) {
+                        return { assetUrl, ok: false, status: String(error) };
+                      }
+                    }),
+                  );
+                  const brokenAssets = assetResults.filter((asset) => !asset.ok);
+                  if (brokenAssets.length === 0) return true;
+                  console.log("::warning::Preview HTML is up but static assets are not ready: " +
+                    brokenAssets.map((asset) => asset.assetUrl + " (" + asset.status + ")").join(", "));
+                }
               } catch {
                 // Retry transient preview/network failures.
               }
@@ -164,13 +186,16 @@ jobs:
           NODE
 
       - name: Run npm ci
+        timeout-minutes: 3
         run: npm ci
 
       - name: Install Playwright test runner without changing the lockfile
+        timeout-minutes: 2
         run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
 
       - name: Run advisory smoke journey on PR
         if: github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        timeout-minutes: 3
         continue-on-error: true
         run: |
           if npm run test:e2e:smoke; then
@@ -182,6 +207,7 @@ jobs:
 
       - name: Run blocking smoke journey nightly/manual
         if: github.event_name != 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        timeout-minutes: 4
         run: |
           if npm run test:e2e:smoke; then
             exit 0
@@ -192,23 +218,60 @@ jobs:
 
       - name: Run canonical hub navigation and redirect E2E
         if: github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
-        run: npx playwright test hub-canonical-navigation.spec.ts legacy-hub-section-redirects.spec.ts --project=mobile-safari
+        timeout-minutes: 4
+        run: |
+          set +e
+          : > canonical-e2e.log
+          run_canonical() {
+            npx playwright test hub-canonical-navigation.spec.ts legacy-hub-section-redirects.spec.ts --project=mobile-safari --reporter=list 2>&1 | tee -a canonical-e2e.log
+            return ${PIPESTATUS[0]}
+          }
+
+          run_canonical
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "::warning::Canonical navigation failed once; retrying once."
+            printf '\n===== RETRY =====\n' >> canonical-e2e.log
+            sleep 10
+            run_canonical
+            status=$?
+          fi
+
+          if [ "$status" -ne 0 ]; then
+            {
+              echo '## Canonical hub navigation failures'
+              echo
+              echo 'The blocking Playwright navigation gate failed after one retry.'
+              echo
+              echo '```text'
+              grep -E '✘|Error:|failed|TEST_SETUP:|Timeout' canonical-e2e.log | tail -80 || tail -80 canonical-e2e.log
+              echo '```'
+              echo
+              echo 'Full traces, screenshots and videos are in the Playwright artifact.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          exit "$status"
 
       - name: Run advisory visual audit on PR
         if: always() && github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        timeout-minutes: 9
         continue-on-error: true
         run: npm run test:e2e:visual
 
       - name: Run full journey nightly/manual
         if: always() && github.event_name != 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        timeout-minutes: 12
         run: npm run test:e2e:full
 
       - name: Run current visual audit nightly/manual
         if: always() && github.event_name != 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        timeout-minutes: 12
         run: npm run test:e2e:visual
 
       - name: Capture historical design reference screenshots nightly/manual
         if: always() && github.event_name != 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        timeout-minutes: 12
         continue-on-error: true
         # Historical migration snapshots compare against an older app baseline.
         # Keep them as evidence, but never let them block current delivery.
@@ -222,6 +285,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
+        timeout-minutes: 2
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -229,5 +293,6 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            canonical-e2e.log
           if-no-files-found: ignore
           retention-days: 7
