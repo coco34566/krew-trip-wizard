@@ -253,7 +253,18 @@ function QuestionnaireResponseFlow({ tripId, children }: { tripId: string; child
     );
   }
 
-  if (data.trip.datesLocked || showPreferences) return <>{children}</>;
+  if (showPreferences) return <>{children}</>;
+
+  if (data.trip.datesLocked) {
+    if (!data.mine) return <>{children}</>;
+    return (
+      <ParticipantAvailabilityStep
+        tripId={tripId}
+        readOnly
+        onComplete={() => setShowPreferences(true)}
+      />
+    );
+  }
 
   return <ParticipantAvailabilityStep tripId={tripId} onComplete={() => setShowPreferences(true)} />;
 }
@@ -391,11 +402,11 @@ function TripLayout() {
       <Outlet />
     </AvailabilityResponseGate>
   ) : showQuestionnairePage ? (
-    <PreferencesResponseGate tripId={tripId}>
-      <QuestionnaireResponseFlow tripId={tripId}>
+    <QuestionnaireResponseFlow tripId={tripId}>
+      <PreferencesResponseGate tripId={tripId}>
         <Outlet />
-      </QuestionnaireResponseFlow>
-    </PreferencesResponseGate>
+      </PreferencesResponseGate>
+    </QuestionnaireResponseFlow>
   ) : showGatedDedicatedPage ? (
     <CompletedPreparationGate tripId={tripId}>
       <Outlet />
