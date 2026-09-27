@@ -27,6 +27,10 @@ test("legacy hub section URLs redirect to canonical chapter routes", async ({ pa
         await expect(page).toHaveURL((url) => url.pathname === `/trips/${tripId}/${chapter}`, {
           timeout: 20_000,
         });
+        // The router redirect can update the URL before WebKit has fully settled the
+        // destination navigation. Wait before starting the next legacy URL check.
+        await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+        await page.waitForTimeout(150);
       });
     }
   } finally {
