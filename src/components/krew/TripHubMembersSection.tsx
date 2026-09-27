@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
