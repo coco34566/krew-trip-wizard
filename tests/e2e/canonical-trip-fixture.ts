@@ -36,7 +36,19 @@ export async function createCanonicalTrip(page: Page): Promise<CanonicalTripFixt
   const match = page.url().match(/\/trips\/([^/]+)\/invite/);
   expect(match?.[1], "Canonical fixture trip id should be present in the URL").toBeTruthy();
 
-  return { tripId: match![1], tripName };
+  const tripId = match![1];
+  await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+  await handleNormalUserUi(page);
+  await expect(page.getByRole("heading", { name: "Inviter la Krew", exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  // The invite route can finish one last client-side navigation after waitForURL resolves.
+  // Keep the fixture on the page until that navigation has fully settled before callers
+  // start a new goto(), otherwise WebKit may abort the next navigation back to /invite.
+  await page.waitForTimeout(300);
+  await expect(page).toHaveURL(new RegExp(`/trips/${tripId}/invite(?:\\?|$)`));
+
+  return { tripId, tripName };
 }
 
 export async function cleanupCanonicalTrip(page: Page, fixture: CanonicalTripFixture | undefined) {
