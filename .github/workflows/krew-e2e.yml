@@ -254,7 +254,7 @@ jobs:
           exit "$status"
 
       - name: Run advisory visual audit on PR
-        if: always() && !cancelled() && github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        if: github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
         timeout-minutes: 9
         continue-on-error: true
         run: npm run test:e2e:visual
