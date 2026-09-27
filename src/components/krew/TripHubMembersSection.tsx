@@ -309,21 +309,24 @@ export function TripHubMembersSection({
       </div>
 
       {canManageTrip ? (
-        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border/40">
-          <Button asChild variant="outline" className="w-auto justify-start">
-            <Link
-              to="/trips/$tripId"
-              params={{ tripId: trip.id }}
-              search={{ view: "feedback" }}
-            >
-              <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
-              <span>Voir les retours du groupe</span>
-            </Link>
-          </Button>
-          <Button type="button" variant="ghost" className="inline-flex w-auto items-center justify-start gap-2 text-left" onClick={onRemind}>
+        <div className="flex flex-col items-start gap-1 pt-4 border-t border-border/40 sm:flex-row sm:items-center sm:gap-3">
+          <Link
+            to="/trips/$tripId"
+            params={{ tripId: trip.id }}
+            search={{ view: "feedback" }}
+            className="inline-flex min-h-9 w-fit max-w-full items-center gap-2 rounded-[10px] px-2 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
+            <span>Voir les retours du groupe</span>
+          </Link>
+          <button
+            type="button"
+            className="inline-flex min-h-9 w-fit max-w-full items-center gap-2 rounded-[10px] px-2 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            onClick={onRemind}
+          >
             <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" />
             <span>Relancer le groupe</span>
-          </Button>
+          </button>
         </div>
       ) : null}
     </section>
