@@ -1,5 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-import { handleNormalUserUi, signIn } from "./helpers";
+import { expect, test } from "@playwright/test";
+import { cleanupCanonicalTrip, createCanonicalTrip } from "./canonical-trip-fixture";
 
 const LEGACY_SECTIONS = [
   ["dates", "dates"],
@@ -12,27 +12,35 @@ const LEGACY_SECTIONS = [
   ["packing", "packing"],
 ] as const;
 
-async function firstTripId(page: Page) {
-  await page.goto("/dashboard");
-  await handleNormalUserUi(page);
-  const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) =>
-    links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""),
-  );
-  for (const href of hrefs) {
-    const match = href.match(/\/trips\/([0-9a-f-]{36})(?:[/?#]|$)/i);
-    if (match?.[1]) return match[1];
-  }
-  throw new Error("TEST_SETUP: no trip is available to validate legacy hub redirects");
-}
+test("legacy hub section URLs redirect to canonical chapter routes", async ({ page, context }) => {
+  let fixture: Awaited<ReturnType<typeof createCanonicalTrip>> | undefined;
 
-test("legacy hub section URLs redirect to canonical chapter routes", async ({ page }) => {
-  await signIn(page);
-  const tripId = await firstTripId(page);
+  try {
+    fixture = await createCanonicalTrip(page);
+    const { tripId } = fixture;
 
-  for (const [section, chapter] of LEGACY_SECTIONS) {
-    await page.goto(`/trips/${tripId}?view=voyage&section=${section}`);
-    await expect(page).toHaveURL((url) => url.pathname === `/trips/${tripId}/${chapter}`, {
-      timeout: 20_000,
-    });
+    for (const [section, chapter] of LEGACY_SECTIONS) {
+      await test.step(section, async () => {
+        // Use a fresh page for every legacy URL. TanStack Router redirects are client-side
+        // and WebKit can still be settling the previous destination after the URL changes;
+        // separate pages make every redirect assertion independent.
+        const redirectPage = await context.newPage();
+        try {
+          await redirectPage.goto(`/trips/${tripId}?view=voyage&section=${section}`, {
+            // The legacy route is expected to redirect immediately. Waiting for the
+            // legacy document's DOMContentLoaded races that redirect in WebKit.
+            waitUntil: "commit",
+          });
+          await expect(redirectPage).toHaveURL(
+            (url) => url.pathname === `/trips/${tripId}/${chapter}`,
+            { timeout: 20_000 },
+          );
+        } finally {
+          await redirectPage.close();
+        }
+      });
+    }
+  } finally {
+    await cleanupCanonicalTrip(page, fixture);
   }
 });

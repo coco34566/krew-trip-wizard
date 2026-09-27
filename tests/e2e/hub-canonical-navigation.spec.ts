@@ -1,5 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
-import { handleNormalUserUi, signIn } from "./helpers";
+import { expect, test } from "@playwright/test";
+import { cleanupCanonicalTrip, createCanonicalTrip } from "./canonical-trip-fixture";
+import { handleNormalUserUi } from "./helpers";
 
 const HUB_STEPS = [
   ["dates", "Dates du groupe"],
@@ -8,54 +9,51 @@ const HUB_STEPS = [
   ["accommodation", "Hébergement"],
   ["transport", "Transport"],
   ["planning", "Planning"],
-  ["tasks", /^(Répartir les tâches|Les tâches du groupe|Tâches du voyage)$/],
+  ["tasks", "Tâches"],
   ["packing", "À emporter"],
 ] as const;
 
-async function dashboardTripIds(page: Page) {
-  await page.goto("/dashboard");
-  await handleNormalUserUi(page);
-  const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) =>
-    links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""),
-  );
-  const ids: string[] = [];
-  for (const href of hrefs) {
-    const match = href.match(/\/trips\/([0-9a-f-]{36})(?:[/?#]|$)/i);
-    if (match?.[1] && !ids.includes(match[1])) ids.push(match[1]);
+test("hub journey uses canonical routes without exposing legacy section links", async ({ page }) => {
+  let fixture: Awaited<ReturnType<typeof createCanonicalTrip>> | undefined;
+
+  try {
+    fixture = await createCanonicalTrip(page);
+    const { tripId } = fixture;
+
+    await page.goto(`/trips/${tripId}?view=voyage`, { waitUntil: "domcontentloaded" });
+    await handleNormalUserUi(page);
+
+    for (const [, title] of HUB_STEPS) {
+      await expect(page.getByRole("heading", { name: title, exact: true }).first()).toBeVisible({
+        timeout: 20_000,
+      });
+    }
+
+    const journeyHrefs = await page.locator(`a[href^="/trips/${tripId}/"]`).evaluateAll((links) =>
+      links
+        .map((link) => (link as HTMLAnchorElement).getAttribute("href") || "")
+        .filter(Boolean),
+    );
+
+    expect(journeyHrefs.some((href) => href.includes("section="))).toBe(false);
+    expect(journeyHrefs).toContain(`/trips/${tripId}/dates`);
+
+    for (const [chapter] of HUB_STEPS) {
+      const matching = journeyHrefs.filter((href) => href === `/trips/${tripId}/${chapter}`);
+      expect(matching.length, `${chapter} must never use a non-canonical href when unlocked`).toBeLessThanOrEqual(1);
+    }
+
+    const datesLink = page.locator(`a[href="/trips/${tripId}/dates"]`).first();
+    await expect(datesLink).toBeVisible({ timeout: 20_000 });
+    await datesLink.click();
+
+    await expect(page).toHaveURL((url) => url.pathname === `/trips/${tripId}/dates`, {
+      timeout: 20_000,
+    });
+    await expect(page.getByRole("heading", { name: "Dates du groupe", exact: true }).first()).toBeVisible({
+      timeout: 20_000,
+    });
+  } finally {
+    await cleanupCanonicalTrip(page, fixture);
   }
-  return ids.slice(0, 20);
-}
-
-async function findPreparedHubTrip(page: Page) {
-  const ids = await dashboardTripIds(page);
-  for (const tripId of ids) {
-    await page.goto(`/trips/${tripId}?view=voyage`);
-    await handleNormalUserUi(page);
-    const planningLink = page.locator(`a[href="/trips/${tripId}/planning"]`).first();
-    if (await planningLink.isVisible().catch(() => false)) return tripId;
-  }
-  throw new Error("TEST_SETUP: no prepared trip exposes the canonical hub journey links");
-}
-
-for (const [chapter, heading] of HUB_STEPS) {
-  test(`hub navigation opens canonical ${chapter} page`, async ({ page }) => {
-    await signIn(page);
-    const tripId = await findPreparedHubTrip(page);
-    await page.goto(`/trips/${tripId}?view=voyage`);
-    await handleNormalUserUi(page);
-
-    const link = page.locator(`a[href="/trips/${tripId}/${chapter}"]`).first();
-    await expect(link, `hub must expose ${chapter} as a canonical link`).toBeVisible({
-      timeout: 20_000,
-    });
-    await link.click();
-
-    await expect(page).toHaveURL((url) => url.pathname === `/trips/${tripId}/${chapter}`, {
-      timeout: 20_000,
-    });
-    await handleNormalUserUi(page);
-    await expect(page.getByRole("heading", { name: heading as string | RegExp }).first()).toBeVisible({
-      timeout: 20_000,
-    });
-  });
-}
+});
