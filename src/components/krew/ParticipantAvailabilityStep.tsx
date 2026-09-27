@@ -40,10 +40,12 @@ function MonthGrid({
   month,
   selection,
   onToggle,
+  readOnly,
 }: {
   month: Date;
   selection: Map<string, DayMode>;
   onToggle: (iso: string) => void;
+  readOnly: boolean;
 }) {
   const first = startOfMonth(month);
   const startWeekday = (first.getDay() + 6) % 7;
@@ -73,13 +75,17 @@ function MonthGrid({
             <button
               key={iso}
               type="button"
-              disabled={isPast}
-              aria-pressed={isPast ? undefined : mode !== null}
-              onClick={() => onToggle(iso)}
+              disabled={readOnly || isPast}
+              aria-pressed={mode !== null}
+              onClick={() => {
+                if (!readOnly) onToggle(iso);
+              }}
               className={cn(
                 "flex aspect-square min-h-10 items-center justify-center rounded-[10px] border text-[13px] font-mono font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                isPast && "cursor-default border-transparent opacity-30",
-                !isPast && !mode && "border-border/40 bg-background hover:border-primary/25 hover:bg-primary/[0.05] hover:text-primary",
+                readOnly && "cursor-default",
+                isPast && !mode && "cursor-default border-transparent opacity-30",
+                !isPast && !mode && readOnly && "border-border/40 bg-background",
+                !isPast && !mode && !readOnly && "border-border/40 bg-background hover:border-primary/25 hover:bg-primary/[0.05] hover:text-primary",
                 mode === "available" && "border-sage/45 bg-sage/25 font-bold text-foreground",
                 mode === "blocked" && "border-destructive/60 bg-destructive/90 font-bold text-destructive-foreground",
                 iso === todayISO && !mode && "ring-1 ring-primary/50",
@@ -97,9 +103,11 @@ function MonthGrid({
 export function ParticipantAvailabilityStep({
   tripId,
   onComplete,
+  readOnly = false,
 }: {
   tripId: string;
   onComplete: () => void;
+  readOnly?: boolean;
 }) {
   const queryClient = useQueryClient();
   const fetchAvailability = useServerFn(getTripAvailability);
@@ -119,10 +127,24 @@ export function ParticipantAvailabilityStep({
   useEffect(() => {
     if (!data || hydrated) return;
     const next = new Map<string, DayMode>();
+    const savedDates = [
+      ...(data.mine?.availableDates ?? []),
+      ...(data.mine?.blockedDates ?? []),
+    ]
+      .map((date) => date.slice(0, 10))
+      .sort();
     for (const date of data.mine?.availableDates ?? []) next.set(date.slice(0, 10), "available");
     for (const date of data.mine?.blockedDates ?? []) next.set(date.slice(0, 10), "blocked");
     setSelection(next);
     setNotes(data.mine?.notes ?? "");
+    const firstSavedDate = savedDates[0];
+    if (firstSavedDate) {
+      const [year, month] = firstSavedDate.split("-").map(Number);
+      if (year && month) {
+        const base = startOfMonth(new Date());
+        setMonthOffset((year - base.getFullYear()) * 12 + (month - 1 - base.getMonth()));
+      }
+    }
     setHydrated(true);
   }, [data, hydrated]);
 
@@ -227,24 +249,33 @@ export function ParticipantAvailabilityStep({
             Tes disponibilités
           </h2>
           <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-            Indique les jours où tu es disponible. On s’en servira pour trouver les meilleures dates pour le groupe.
+            {readOnly
+              ? "Voici les disponibilités que tu avais indiquées pour ce voyage."
+              : "Indique les jours où tu es disponible. On s’en servira pour trouver les meilleures dates pour le groupe."}
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Mode de sélection">
-          <Button type="button" variant={paintMode === "available" ? "default" : "outline"} onClick={() => setPaintMode("available")}>
-            Disponible
-          </Button>
-          <Button type="button" variant={paintMode === "blocked" ? "default" : "outline"} onClick={() => setPaintMode("blocked")}>
-            Impossible
-          </Button>
-          <Button type="button" variant="outline" onClick={selectWeekendsInView}>
-            Appliquer aux week-ends affichés
-          </Button>
-        </div>
+        {!readOnly ? (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Mode de sélection">
+            <Button type="button" variant={paintMode === "available" ? "default" : "outline"} onClick={() => setPaintMode("available")}>
+              Disponible
+            </Button>
+            <Button type="button" variant={paintMode === "blocked" ? "default" : "outline"} onClick={() => setPaintMode("blocked")}>
+              Impossible
+            </Button>
+            <Button type="button" variant="outline" onClick={selectWeekendsInView}>
+              Appliquer aux week-ends affichés
+            </Button>
+          </div>
+        ) : null}
 
         <div className="flex items-center justify-between gap-3">
-          <Button type="button" variant="ghost" onClick={() => setMonthOffset((value) => Math.max(0, value - 2))} disabled={monthOffset === 0}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setMonthOffset((value) => (readOnly ? value - 2 : Math.max(0, value - 2)))}
+            disabled={!readOnly && monthOffset === 0}
+          >
             <ChevronLeft className="mr-1 size-4" /> Précédent
           </Button>
           <Button type="button" variant="ghost" onClick={() => setMonthOffset((value) => value + 2)}>
@@ -254,35 +285,60 @@ export function ParticipantAvailabilityStep({
 
         <div className="grid gap-4 sm:grid-cols-2">
           {months.map((month) => (
-            <MonthGrid key={`${month.getFullYear()}-${month.getMonth()}`} month={month} selection={selection} onToggle={toggleDay} />
+            <MonthGrid
+              key={`${month.getFullYear()}-${month.getMonth()}`}
+              month={month}
+              selection={selection}
+              onToggle={toggleDay}
+              readOnly={readOnly}
+            />
           ))}
         </div>
 
         <KrewNote tone="cream" className="max-w-full">
-          Vert = disponible · Rouge = impossible. Tu peux modifier tes choix tant que les dates du groupe ne sont pas verrouillées.
+          {readOnly
+            ? "Vert = disponible · Rouge = impossible. Les dates du groupe sont confirmées : tes réponses sont affichées en lecture seule."
+            : "Vert = disponible · Rouge = impossible. Tu peux modifier tes choix tant que les dates du groupe ne sont pas verrouillées."}
         </KrewNote>
 
-        <div className="space-y-2">
-          <Label htmlFor="availability-notes" className="font-semibold text-base text-foreground">Précision sur tes disponibilités (optionnel)</Label>
-          <Textarea
-            id="availability-notes"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            maxLength={500}
-            placeholder="Ex : je peux arriver le vendredi soir après 20h…"
-            className="min-h-[100px] rounded-xl border-border focus-visible:ring-primary text-base"
-          />
-        </div>
+        {readOnly ? (
+          notes ? (
+            <div className="space-y-2">
+              <Label className="font-semibold text-base text-foreground">Précision sur tes disponibilités</Label>
+              <p className="rounded-xl border border-border/50 bg-muted/25 px-4 py-3 text-sm leading-relaxed text-foreground">
+                {notes}
+              </p>
+            </div>
+          ) : null
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="availability-notes" className="font-semibold text-base text-foreground">Précision sur tes disponibilités (optionnel)</Label>
+            <Textarea
+              id="availability-notes"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              maxLength={500}
+              placeholder="Ex : je peux arriver le vendredi soir après 20h…"
+              className="min-h-[100px] rounded-xl border-border focus-visible:ring-primary text-base"
+            />
+          </div>
+        )}
 
         <div className="pb-12 pt-2">
-          <KrewStatefulButton
-            className="max-w-full"
-            idleLabel={data.mine ? "Enregistrer et continuer" : "Continuer vers mes préférences"}
-            loadingLabel="Enregistrement…"
-            successLabel="Disponibilités enregistrées"
-            errorLabel="Réessayer"
-            onAction={() => mutation.mutateAsync()}
-          />
+          {readOnly ? (
+            <Button type="button" onClick={onComplete}>
+              Voir mes préférences
+            </Button>
+          ) : (
+            <KrewStatefulButton
+              className="max-w-full"
+              idleLabel={data.mine ? "Enregistrer et continuer" : "Continuer vers mes préférences"}
+              loadingLabel="Enregistrement…"
+              successLabel="Disponibilités enregistrées"
+              errorLabel="Réessayer"
+              onAction={() => mutation.mutateAsync()}
+            />
+          )}
         </div>
       </section>
     </KrewPageShell>
