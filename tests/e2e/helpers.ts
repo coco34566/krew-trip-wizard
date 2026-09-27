@@ -60,12 +60,22 @@ async function submitQaSignIn(page: Page, attempt: number) {
     .waitForURL(/\/dashboard(?:\?|$)/, { timeout: attempt === 0 ? 15_000 : 30_000 })
     .then(() => true)
     .catch(() => false);
-  if (reachedDashboard) return true;
+  if (reachedDashboard) {
+    // waitForURL can resolve before the auth redirect navigation has fully settled in WebKit.
+    // Without this, an immediate page.goto() can race a late /dashboard navigation.
+    await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+    await page.waitForTimeout(100);
+    return true;
+  }
 
   // If the app stayed on /auth, first distinguish a genuine credential problem from
   // the transient auth-page reset observed in WebKit/Vercel preview runs.
   await handleNormalUserUi(page);
-  if (/\/dashboard(?:\?|$)/.test(new URL(page.url()).pathname)) return true;
+  if (/\/dashboard(?:\?|$)/.test(new URL(page.url()).pathname)) {
+    await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+    await page.waitForTimeout(100);
+    return true;
+  }
 
   const explicitAuthError = page.getByText(
     /Identifiants incorrects|adresse e-mail n'a pas encore été confirmée|Impossible de se connecter/i,

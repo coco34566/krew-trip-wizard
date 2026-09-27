@@ -1,5 +1,8 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { handleNormalUserUi, signIn, userClick } from "./helpers";
+import { TEST_TRIP_PREFIXES, testTripName } from "./test-trip-constants";
+
+const JOIN_AUDIT_PREFIX = TEST_TRIP_PREFIXES[3];
 
 const VIEWPORTS = [
   { name: "narrow-mobile", width: 320, height: 568, screenshot: false },
@@ -22,7 +25,7 @@ async function createAuditTrip(page: Page) {
   await page.goto("/trips/new");
   await handleNormalUserUi(page);
   await expect(page.locator("#name")).toBeVisible();
-  await page.locator("#name").fill(`JOIN-VISUAL-AUDIT-${Date.now()}`);
+  await page.locator("#name").fill(testTripName(JOIN_AUDIT_PREFIX));
   await page.locator("#orga").fill("QA");
   await userClick(page, page.getByRole("button", { name: /25-35 ans/ }), "choose join visual-audit age range");
   await page.locator("#n").fill("2");
@@ -133,7 +136,7 @@ test("join invitation visual states use a real invite token", async ({ page }, t
   // trip/token cannot be read anonymously. This distinguishes fixture failure from UI failure.
   await page.goto(invitePath);
   await settleJoin(page);
-  await expect(page.getByRole("heading", { name: /JOIN-VISUAL-AUDIT-/i }).first()).toBeVisible({
+  await expect(page.getByRole("heading", { name: new RegExp(JOIN_AUDIT_PREFIX, "i") }).first()).toBeVisible({
     timeout: 20_000,
   });
 
@@ -159,7 +162,7 @@ test("join invitation visual states use a real invite token", async ({ page }, t
     {
       name: "valid-invite",
       path: invitePath,
-      heading: new RegExp("JOIN-VISUAL-AUDIT-", "i"),
+      heading: new RegExp(JOIN_AUDIT_PREFIX, "i"),
     },
     {
       name: "missing-token",
