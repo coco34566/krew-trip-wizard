@@ -227,7 +227,7 @@ export function ParticipantAvailabilityStep({
             Tes disponibilités
           </h2>
           <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-            Indique les jours qui fonctionnent pour toi. Cette information alimente le même moteur de dates qu’aujourd’hui.
+            Indique les jours où tu es disponible. On s’en servira pour trouver les meilleures dates pour le groupe.
           </p>
         </div>
 
