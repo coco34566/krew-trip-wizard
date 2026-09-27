@@ -27,7 +27,9 @@ test("legacy hub section URLs redirect to canonical chapter routes", async ({ pa
         const redirectPage = await context.newPage();
         try {
           await redirectPage.goto(`/trips/${tripId}?view=voyage&section=${section}`, {
-            waitUntil: "domcontentloaded",
+            // The legacy route is expected to redirect immediately. Waiting for the
+            // legacy document's DOMContentLoaded races that redirect in WebKit.
+            waitUntil: "commit",
           });
           await expect(redirectPage).toHaveURL(
             (url) => url.pathname === `/trips/${tripId}/${chapter}`,
