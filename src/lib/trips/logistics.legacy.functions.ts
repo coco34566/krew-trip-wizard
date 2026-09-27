@@ -76,7 +76,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const distanceKm = Number(dest?.distance_from_paris_km) || 800;
 
     const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
-    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const aggregated = await aggregateParticipantPreferences(supabaseAdmin, data.tripId);
 
     const providerErrors: string[] = [];
     const budget = Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400;

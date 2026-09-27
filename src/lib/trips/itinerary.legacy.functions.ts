@@ -65,7 +65,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const destCountry = (selected.data as any).destinations?.country || null;
 
     const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
-    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const aggregated = await aggregateParticipantPreferences(supabaseAdmin, data.tripId);
 
     let nights = Number(trip.duration_nights) || 2;
     if (trip.start_date && trip.end_date) {
@@ -813,7 +814,8 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     }
 
     const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
-    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const aggregated = await aggregateParticipantPreferences(supabaseAdmin, data.tripId);
 
     const isAccessibilityRequired = (aggregated.individualPreferences ?? []).some(
       (preference: any) => preference?.accessibilityRequired === true,

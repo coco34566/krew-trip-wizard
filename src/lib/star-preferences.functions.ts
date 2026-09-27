@@ -23,23 +23,12 @@ export const getStarPreferences = createServerFn({ method: "GET" })
     const starPaysShare = (trip.data.group_logistics as any)?.star_pays_share !== false;
     const isAdmin = isTripAdmin(trip.data, userId);
 
-    if (starMode === "participant") {
-      return {
-        trip: {
-          id: trip.data.id,
-          name: trip.data.name,
-          eventType: trip.data.event_type,
-          celebratedPerson: trip.data.celebrated_person,
-          hasStar: true,
-          isOwner: isAdmin,
-        },
-        preferences: null,
-        starMode,
-        starPaysShare,
-      };
+    const isActualStar = Boolean(trip.data.star_user_id && trip.data.star_user_id === userId);
+    if (starMode === "participant" && !isAdmin && !isActualStar) {
+      throw new Error("403 Forbidden: questionnaire réservé à la Star et aux organisateurs");
     }
 
-    if (!isAdmin && starMode === "secret") {
+    if (starMode === "secret" && !isAdmin) {
       throw new Error(
         "403 Forbidden: Seuls les organisateurs peuvent modifier les préférences de la Star en mode secret.",
       );
@@ -136,25 +125,16 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
     const starMode = (trip.data.group_logistics as any)?.star_mode ?? "secret";
     const isAdmin = isTripAdmin(trip.data, userId);
 
-    if (starMode !== "secret") {
-      throw new Error("Le questionnaire Star est réservé au mode secret");
-    }
+    const starUserId = trip.data.star_user_id;
+    const isActualStar = Boolean(starUserId && starUserId === userId);
 
-    if (!isAdmin && starMode === "secret") {
+    if (starMode === "secret" && !isAdmin) {
       throw new Error(
         "403 Forbidden: Seuls les organisateurs peuvent modifier les préférences de la Star en mode secret.",
       );
     }
-
-    if (!isAdmin) {
-      // participants peuvent aussi remplir si autorisés et pas secret
-      const part = await supabase
-        .from("trip_participants")
-        .select("id")
-        .eq("trip_id", data.tripId)
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (!part.data) throw new Error("403 Forbidden");
+    if (starMode === "participant" && !isActualStar) {
+      throw new Error("403 Forbidden: questionnaire réservé à la Star");
     }
 
     const now = new Date().toISOString();
@@ -164,8 +144,6 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
       .eq("trip_id", data.tripId)
       .maybeSingle();
 
-    const starUserId = trip.data.star_user_id;
-    const isActualStar = Boolean(starUserId && starUserId === userId);
     const payload = {
       trip_id: data.tripId,
       filled_by: userId,
