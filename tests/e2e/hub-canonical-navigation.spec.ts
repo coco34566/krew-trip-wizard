@@ -9,37 +9,50 @@ const HUB_STEPS = [
   ["accommodation", "Hébergement"],
   ["transport", "Transport"],
   ["planning", "Planning"],
-  ["tasks", /^(Répartir les tâches|Les tâches du groupe|Tâches du voyage)$/],
+  ["tasks", "Tâches"],
   ["packing", "À emporter"],
 ] as const;
 
-test("hub navigation opens every canonical journey page", async ({ page }) => {
+test("hub journey uses canonical routes without exposing legacy section links", async ({ page }) => {
   let fixture: Awaited<ReturnType<typeof createCanonicalTrip>> | undefined;
 
   try {
     fixture = await createCanonicalTrip(page);
     const { tripId } = fixture;
 
-    for (const [chapter, heading] of HUB_STEPS) {
-      await test.step(chapter, async () => {
-        await page.goto(`/trips/${tripId}?view=voyage`, { waitUntil: "domcontentloaded" });
-        await handleNormalUserUi(page);
+    await page.goto(`/trips/${tripId}?view=voyage`, { waitUntil: "domcontentloaded" });
+    await handleNormalUserUi(page);
 
-        const link = page.locator(`a[href="/trips/${tripId}/${chapter}"]`).first();
-        await expect(link, `hub must expose ${chapter} as a canonical link`).toBeVisible({
-          timeout: 20_000,
-        });
-        await link.click();
-
-        await expect(page).toHaveURL((url) => url.pathname === `/trips/${tripId}/${chapter}`, {
-          timeout: 20_000,
-        });
-        await handleNormalUserUi(page);
-        await expect(page.getByRole("heading", { name: heading as string | RegExp }).first()).toBeVisible({
-          timeout: 20_000,
-        });
+    for (const [, title] of HUB_STEPS) {
+      await expect(page.getByRole("heading", { name: title, exact: true }).first()).toBeVisible({
+        timeout: 20_000,
       });
     }
+
+    const journeyHrefs = await page.locator(`a[href^="/trips/${tripId}/"]`).evaluateAll((links) =>
+      links
+        .map((link) => (link as HTMLAnchorElement).getAttribute("href") || "")
+        .filter(Boolean),
+    );
+
+    expect(journeyHrefs.some((href) => href.includes("section="))).toBe(false);
+    expect(journeyHrefs).toContain(`/trips/${tripId}/dates`);
+
+    for (const [chapter] of HUB_STEPS) {
+      const matching = journeyHrefs.filter((href) => href === `/trips/${tripId}/${chapter}`);
+      expect(matching.length, `${chapter} must never use a non-canonical href when unlocked`).toBeLessThanOrEqual(1);
+    }
+
+    const datesLink = page.locator(`a[href="/trips/${tripId}/dates"]`).first();
+    await expect(datesLink).toBeVisible({ timeout: 20_000 });
+    await datesLink.click();
+
+    await expect(page).toHaveURL((url) => url.pathname === `/trips/${tripId}/dates`, {
+      timeout: 20_000,
+    });
+    await expect(page.getByRole("heading", { name: "Dates du groupe", exact: true }).first()).toBeVisible({
+      timeout: 20_000,
+    });
   } finally {
     await cleanupCanonicalTrip(page, fixture);
   }
