@@ -219,6 +219,7 @@ jobs:
       - name: Run canonical hub navigation and redirect E2E
         if: github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
         timeout-minutes: 4
+        shell: bash
         run: |
           set +e
           : > canonical-e2e.log
