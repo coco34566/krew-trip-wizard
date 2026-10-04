@@ -50,6 +50,10 @@ export const participantPreferencesSchema = z.object({
   weatherPreference: z.number().int().min(0).max(2).default(1),
 });
 
+export function canEditParticipantQuestionnaire(destinationSelected: boolean): boolean {
+  return !destinationSelected;
+}
+
 export function questionnaireCompletionResult(input: {
   isUpdate: boolean;
   answered: number;
@@ -314,7 +318,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
     if (selectedDestination.error) throw selectedDestination.error;
-    if (selectedDestination.data) {
+    if (!canEditParticipantQuestionnaire(Boolean(selectedDestination.data))) {
       throw new Error("QUESTIONNAIRE_LOCKED_DESTINATION_SELECTED");
     }
     const isTripAdmin =
