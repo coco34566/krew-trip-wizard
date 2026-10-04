@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { questionnaireCompletionResult } from "../participant-preferences.functions";
 import { replaceRecommendationsSafely, requiresLegacyProfileValidation, selectTopDestinationProposals } from "../krew/trip-service";
-import { selectDiverseTop, type Proposal } from "../krew/engine";
+import { computeOriginTransportFairnessPenalty, selectDiverseTop, type Proposal } from "../krew/engine";
 
 const proposal = (name: string, score: number, country = "France") => ({
   destination: { id: name, name, country }, score,
@@ -57,6 +57,18 @@ describe("pipeline finalization", () => {
   it("keeps deterministic score order for near ties", () => {
     const ranked = selectDiverseTop([proposal("A", 93), proposal("B", 92), proposal("C", 91)], 3);
     expect(ranked.map((item) => item.score)).toEqual([93, 92, 91]);
+  });
+
+  it("penalizes uneven transport costs more strongly on a one-night trip", () => {
+    const origins = [
+      { city: "Paris", count: 5, pricePerPerson: 90 },
+      { city: "Lattes", count: 1, pricePerPerson: 45 },
+    ];
+    const oneNightPenalty = computeOriginTransportFairnessPenalty(origins, 1);
+    const longStayPenalty = computeOriginTransportFairnessPenalty(origins, 4);
+
+    expect(oneNightPenalty).toBeGreaterThan(longStayPenalty);
+    expect(oneNightPenalty).toBeGreaterThan(0);
   });
 
   it("retains the established four-destination output limit", () => {
