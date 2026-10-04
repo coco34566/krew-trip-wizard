@@ -484,6 +484,31 @@ export function estimateTransport(distanceKm: number): number {
   return 130 + (distanceKm - 1600) * 0.05;
 }
 
+export function computeOriginTransportFairnessPenalty(
+  origins: { city: string; count: number; pricePerPerson: number }[] | undefined,
+  nights: number,
+): number {
+  const declared = (origins ?? []).filter(
+    (origin) =>
+      origin.count > 0 &&
+      origin.pricePerPerson >= 0 &&
+      norm(origin.city) !== norm("Départ à confirmer"),
+  );
+  if (declared.length < 2) return 0;
+
+  const people = declared.reduce((sum, origin) => sum + origin.count, 0);
+  if (people <= 0) return 0;
+
+  const weightedAverage =
+    declared.reduce((sum, origin) => sum + origin.pricePerPerson * origin.count, 0) / people;
+  if (weightedAverage <= 0) return 0;
+
+  const prices = declared.map((origin) => origin.pricePerPerson);
+  const spreadRatio = (Math.max(...prices) - Math.min(...prices)) / weightedAverage;
+  const shortStayMultiplier = nights <= 1 ? 1.5 : nights <= 2 ? 1.2 : 1;
+  return clamp(spreadRatio * 6 * shortStayMultiplier, 0, 7);
+}
+
 /** Cadres canoniques (mêmes libellés que les questionnaires). */
 export const ENV_TYPES = [
   "Centre-ville / urbain",
@@ -1768,6 +1793,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         sConsensus * w.consensus +
         sMinSat * w.minSatisfaction;
       score += (localMobilityFit - 1) * 12;
+      score -= computeOriginTransportFairnessPenalty(transportOrigins, ctx.nights);
 
       // Soft Preferences / Context based on group age range
       if (ctx.groupAgeRange) {
