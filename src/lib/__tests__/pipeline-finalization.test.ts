@@ -64,6 +64,23 @@ describe("pipeline finalization", () => {
     expect(ranked).toHaveLength(4);
   });
 
+  it("deduplicates a city and a territory anchored on the same place", () => {
+    const city = proposal("Annecy", 92);
+    const territory = proposal("Lac d'Annecy & Massif des Bornes", 95);
+    (territory.destination as any).anchor_places = ["Annecy", "Talloires"];
+
+    const ranked = selectTopDestinationProposals([
+      city,
+      territory,
+      proposal("Marrakech", 90, "Maroc"),
+    ], 4);
+
+    expect(ranked.map((item) => item.destination.name)).toEqual([
+      "Lac d'Annecy & Massif des Bornes",
+      "Marrakech",
+    ]);
+  });
+
   it("keeps only the best configuration for each final destination", () => {
     const ranked = selectTopDestinationProposals([
       proposal("Paris", 95), proposal("Paris", 93), proposal("Lyon", 92),
