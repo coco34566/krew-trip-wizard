@@ -116,6 +116,7 @@ function ParticipantQuestionnaire() {
   /** True si l'utilisateur connecté a déjà une ligne de préférences (édition). */
   const [isEditing, setIsEditing] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [needsQuestionnaireRefresh, setNeedsQuestionnaireRefresh] = useState(false);
   const [tripName, setTripName] = useState("");
   const [eventType, setEventType] = useState<string | null>(null);
   const [isParticipatingStar, setIsParticipatingStar] = useState(false);
@@ -175,6 +176,14 @@ function ParticipantQuestionnaire() {
         if (preferences) {
           setIsEditing(true);
           setLastSavedAt(preferences.updated_at || preferences.submitted_at || null);
+          setNeedsQuestionnaireRefresh(
+            !preferences.wanted_env_type ||
+              !preferences.travel_pace ||
+              !preferences.local_mobility ||
+              !preferences.accommodation_role ||
+              !Array.isArray((preferences as any).lodging_type_preferences) ||
+              (preferences as any).lodging_type_preferences.length === 0,
+          );
           setWantedEnvTypes(
             (preferences as any).wanted_env_type
               ? (preferences as any).wanted_env_type.split(", ")
@@ -239,6 +248,7 @@ function ParticipantQuestionnaire() {
         } else {
           setIsEditing(false);
           setLastSavedAt(null);
+          setNeedsQuestionnaireRefresh(false);
           setDepartureCity(dep);
         }
       })
@@ -330,6 +340,7 @@ function ParticipantQuestionnaire() {
         },
       });
       setIsEditing(true);
+      setNeedsQuestionnaireRefresh(false);
       setLastSavedAt(new Date().toISOString());
       navigate({ to: "/trips/$tripId", params: { tripId } });
     } catch (e: any) {
@@ -403,20 +414,36 @@ function ParticipantQuestionnaire() {
       </KrewJourneyPageHeader>
 
       {isEditing ? (
-        <KrewJourneyStatusPanel title="Préférences enregistrées" icon="check" tone="complete">
-          <p>
-            Tu as déjà répondu
-            {lastSavedAt
-              ? ` (mise à jour le ${new Date(lastSavedAt).toLocaleString("fr-FR", {
-                  day: "numeric",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })})`
-              : ""}
-            . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton compte.
-          </p>
-        </KrewJourneyStatusPanel>
+        needsQuestionnaireRefresh ? (
+          <KrewJourneyStatusPanel title="Quelques nouvelles questions à compléter" icon="info" tone="attention">
+            <p>
+              Tes réponses déjà enregistrées sont bien conservées
+              {lastSavedAt
+                ? ` (dernière réponse le ${new Date(lastSavedAt).toLocaleString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })})`
+                : ""}.
+              Le questionnaire a évolué depuis : complète simplement les questions restées vides puis enregistre.
+            </p>
+          </KrewJourneyStatusPanel>
+        ) : (
+          <KrewJourneyStatusPanel title="Préférences enregistrées" icon="check" tone="complete">
+            <p>
+              Tu as déjà répondu
+              {lastSavedAt
+                ? ` (mise à jour le ${new Date(lastSavedAt).toLocaleString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })})`
+                : ""}
+              . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton compte.
+            </p>
+          </KrewJourneyStatusPanel>
+        )
       ) : null}
 
       <div>
