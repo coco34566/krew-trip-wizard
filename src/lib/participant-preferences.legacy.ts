@@ -143,7 +143,7 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
         .eq("trip_id", data.tripId)
         .eq("user_id", userId)
         .maybeSingle(),
-      supabase
+      supabaseAdmin
         .from("recommendations")
         .select("id")
         .eq("trip_id", data.tripId)
@@ -151,6 +151,7 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
         .limit(1)
         .maybeSingle(),
     ]);
+    if (selectedDestination.error) throw selectedDestination.error;
     if (prefs.error) {
       const msg = String(prefs.error.message || prefs.error);
       if (msg.includes("schema cache") || msg.includes("Could not find") || msg.includes("does not exist")) {
@@ -515,7 +516,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
 
     // Toute réponse nouvelle ou modifiée avant le choix final rend les propositions
     // existantes obsolètes : elles devront être régénérées avec les préférences à jour.
-    const staleRecommendations = await supabase
+    const staleRecommendations = await supabaseAdmin
       .from("recommendations")
       .delete()
       .eq("trip_id", data.tripId)
