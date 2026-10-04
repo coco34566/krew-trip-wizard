@@ -115,6 +115,7 @@ function ParticipantQuestionnaire() {
   const [loadAttempt, setLoadAttempt] = useState(0);
   /** True si l'utilisateur connecté a déjà une ligne de préférences (édition). */
   const [isEditing, setIsEditing] = useState(false);
+  const [destinationSelected, setDestinationSelected] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [needsQuestionnaireRefresh, setNeedsQuestionnaireRefresh] = useState(false);
   const [tripName, setTripName] = useState("");
@@ -164,9 +165,10 @@ function ParticipantQuestionnaire() {
     setLoadError(null);
 
     fetchMine({ data: { tripId } })
-      .then(({ trip, preferences, isStar, starMode, starEventPreferences }: any) => {
+      .then(({ trip, preferences, isStar, starMode, starEventPreferences, destinationSelected }: any) => {
         if (cancelled) return;
         setTripName(trip.name);
+        setDestinationSelected(Boolean(destinationSelected));
         setEventType(trip.event_type ?? null);
         setIsParticipatingStar(Boolean(isStar && starMode === "participant"));
         setStarEventWanted(starEventPreferences?.wantedActivities ?? []);
@@ -294,6 +296,10 @@ function ParticipantQuestionnaire() {
   }
 
   async function handleSubmit() {
+    if (destinationSelected) {
+      toast.error("La destination est déjà choisie : les préférences sont désormais verrouillées.");
+      throw new Error("QUESTIONNAIRE_LOCKED_DESTINATION_SELECTED");
+    }
     const error = validate();
     if (error) {
       toast.error(error);
@@ -345,6 +351,11 @@ function ParticipantQuestionnaire() {
       navigate({ to: "/trips/$tripId", params: { tripId } });
     } catch (e: any) {
       const msg = String(e?.message ?? e ?? "");
+      if (msg.includes("QUESTIONNAIRE_LOCKED_DESTINATION_SELECTED")) {
+        toast.error("La destination est déjà choisie : les préférences ne peuvent plus être modifiées.");
+        setDestinationSelected(true);
+        throw e;
+      }
       if (msg.includes("403 Forbidden")) {
         toast.error("Tu n’as pas accès à ces préférences.");
         navigate({ to: "/dashboard" });
@@ -413,6 +424,14 @@ function ParticipantQuestionnaire() {
         ) : null}
       </KrewJourneyPageHeader>
 
+      {destinationSelected ? (
+        <KrewJourneyStatusPanel title="Préférences verrouillées" icon="attention" tone="locked">
+          <p>
+            La destination a été choisie. Tes réponses restent visibles ci-dessous, mais elles ne peuvent plus être modifiées.
+          </p>
+        </KrewJourneyStatusPanel>
+      ) : null}
+
       {isEditing ? (
         needsQuestionnaireRefresh ? (
           <KrewJourneyStatusPanel title="Quelques nouvelles questions à compléter" icon="attention" tone="info">
@@ -446,7 +465,7 @@ function ParticipantQuestionnaire() {
         )
       ) : null}
 
-      <div>
+      <div className={destinationSelected ? "pointer-events-none opacity-75" : undefined} aria-disabled={destinationSelected}>
         <Section
           title="Envies et ambiance"
           hint="Choisis les envies et l’ambiance qui te correspondent."
@@ -879,6 +898,7 @@ function ParticipantQuestionnaire() {
           </div>
         </Section>
 
+        {!destinationSelected ? (
         <div className="pt-2 pb-12">
           <KrewStatefulButton
             className="max-w-full"
@@ -889,6 +909,7 @@ function ParticipantQuestionnaire() {
             onAction={handleSubmit}
           />
         </div>
+        ) : null}
       </div>
     </KrewPageShell>
   );
