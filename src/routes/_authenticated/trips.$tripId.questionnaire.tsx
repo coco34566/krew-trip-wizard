@@ -415,7 +415,7 @@ function ParticipantQuestionnaire() {
 
       {isEditing ? (
         needsQuestionnaireRefresh ? (
-          <KrewJourneyStatusPanel title="Quelques nouvelles questions à compléter" icon="info" tone="attention">
+          <KrewJourneyStatusPanel title="Quelques nouvelles questions à compléter" icon="attention" tone="info">
             <p>
               Tes réponses déjà enregistrées sont bien conservées
               {lastSavedAt
