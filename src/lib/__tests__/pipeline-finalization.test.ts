@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { questionnaireCompletionResult } from "../participant-preferences.functions";
 import { replaceRecommendationsSafely, requiresLegacyProfileValidation, selectTopDestinationProposals } from "../krew/trip-service";
-import { selectDiverseTop, type Proposal } from "../krew/engine";
+import { computeOriginTransportFairnessPenalty, selectDiverseTop, type Proposal } from "../krew/engine";
 
 const proposal = (name: string, score: number, country = "France") => ({
   destination: { id: name, name, country }, score,
@@ -59,9 +59,38 @@ describe("pipeline finalization", () => {
     expect(ranked.map((item) => item.score)).toEqual([93, 92, 91]);
   });
 
+  it("penalizes uneven transport costs more strongly on a one-night trip", () => {
+    const origins = [
+      { city: "Paris", count: 5, pricePerPerson: 90 },
+      { city: "Lattes", count: 1, pricePerPerson: 45 },
+    ];
+    const oneNightPenalty = computeOriginTransportFairnessPenalty(origins, 1);
+    const longStayPenalty = computeOriginTransportFairnessPenalty(origins, 4);
+
+    expect(oneNightPenalty).toBeGreaterThan(longStayPenalty);
+    expect(oneNightPenalty).toBeGreaterThan(0);
+  });
+
   it("retains the established four-destination output limit", () => {
     const ranked = selectTopDestinationProposals([95, 94, 93, 92, 91].map((score) => proposal(String(score), score)), 4);
     expect(ranked).toHaveLength(4);
+  });
+
+  it("deduplicates a city and a territory anchored on the same place", () => {
+    const city = proposal("Annecy", 92);
+    const territory = proposal("Lac d'Annecy & Massif des Bornes", 95);
+    (territory.destination as any).anchor_places = ["Annecy", "Talloires"];
+
+    const ranked = selectTopDestinationProposals([
+      city,
+      territory,
+      proposal("Marrakech", 90, "Maroc"),
+    ], 4);
+
+    expect(ranked.map((item) => item.destination.name)).toEqual([
+      "Lac d'Annecy & Massif des Bornes",
+      "Marrakech",
+    ]);
   });
 
   it("keeps only the best configuration for each final destination", () => {

@@ -476,14 +476,34 @@ export async function canServeFromCandidatePool(
   }
 }
 
-export function selectTopDestinationProposals(proposals: Proposal[], limit = 4): Proposal[] {
-  const bestByDestination = new Map<string, Proposal>();
-  for (const proposal of [...proposals].sort((a, b) => b.score - a.score)) {
-    if (!bestByDestination.has(proposal.destination.id)) {
-      bestByDestination.set(proposal.destination.id, proposal);
-    }
+function destinationAreaKeys(destination: Proposal["destination"]): Set<string> {
+  return new Set(
+    [destination.name, ...(destination.anchor_places ?? [])]
+      .map((value) => normCity(String(value ?? "")))
+      .filter(Boolean),
+  );
+}
+
+function sameDestinationArea(a: Proposal["destination"], b: Proposal["destination"]): boolean {
+  if (normCity(a.country ?? "") !== normCity(b.country ?? "")) return false;
+  const aKeys = destinationAreaKeys(a);
+  const bKeys = destinationAreaKeys(b);
+  for (const key of aKeys) {
+    if (bKeys.has(key)) return true;
   }
-  return [...bestByDestination.values()].slice(0, limit);
+  return false;
+}
+
+export function selectTopDestinationProposals(proposals: Proposal[], limit = 4): Proposal[] {
+  const selected: Proposal[] = [];
+  for (const proposal of [...proposals].sort((a, b) => b.score - a.score)) {
+    if (selected.some((existing) => sameDestinationArea(existing.destination, proposal.destination))) {
+      continue;
+    }
+    selected.push(proposal);
+    if (selected.length >= limit) break;
+  }
+  return selected;
 }
 
 type ParticipantPrefRow = {
@@ -1913,21 +1933,13 @@ export async function generateRecommendationsForTrip(
   const activitiesPerPersonPerDayByDestinationId: Record<string, number> = {};
   const activityFitByDestinationId: Record<string, string[]> = {};
   const budgetLevelByDestinationId: Record<string, "low" | "medium" | "high"> = {};
-  const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
+  const tripOrigin = String(trip.data.departure_city ?? "").trim();
   const departureOrigins = aggregated.departureOrigins?.length
     ? aggregated.departureOrigins.map((origin) => ({ ...origin }))
-    : [{ city: tripOrigin, count: Math.max(1, ctx.participants) }];
-  const countedInOrigins = departureOrigins.reduce((sum, origin) => sum + origin.count, 0);
-  const originsForQuote = (() => {
-    if (countedInOrigins >= ctx.participants) return departureOrigins;
-    const remaining = ctx.participants - countedInOrigins;
-    const existing = departureOrigins.find((origin) => normCity(origin.city) === normCity(tripOrigin));
-    if (existing) {
-      existing.count += remaining;
-      return departureOrigins;
-    }
-    return [...departureOrigins, { city: tripOrigin, count: remaining }];
-  })();
+    : tripOrigin
+      ? [{ city: tripOrigin, count: Math.max(1, ctx.participants) }]
+      : [];
+  const originsForQuote = departureOrigins;
   const fallbackTransport = (distanceKm: number) =>
     distanceKm <= 350
       ? 45
@@ -1962,9 +1974,20 @@ export async function generateRecommendationsForTrip(
   const incompatibleDestinationIds = new Set<string>();
 
   for (const destination of catalogFinal.destinations) {
-    const candidate = mergedCandidates.find(
-      (item) => normCity(item.name) === normCity(destination.name),
+    const destinationName = normCity(destination.name);
+    const destinationAnchors = new Set(
+      (destination.anchor_places ?? []).map((anchor) => normCity(anchor)).filter(Boolean),
     );
+    const candidate = mergedCandidates.find((item) => {
+      const candidateName = normCity(item.name);
+      if (!candidateName) return false;
+      if (candidateName === destinationName || destinationAnchors.has(candidateName)) return true;
+      return (
+        candidateName.length >= 4 &&
+        destinationName.length >= 4 &&
+        (destinationName.includes(candidateName) || candidateName.includes(destinationName))
+      );
+    });
     if (!candidate) continue;
 
     const distanceByCity = new Map<string, { distanceKm: number; estimated: boolean }>();
@@ -2033,15 +2056,35 @@ export async function generateRecommendationsForTrip(
       continue;
     }
 
-    const groupTotal = byOrigin.reduce(
+    const knownGroupTotal = byOrigin.reduce(
       (sum, origin) => sum + origin.pricePerPerson * origin.count,
       0,
     );
-    const people = byOrigin.reduce((sum, origin) => sum + origin.count, 0);
+    const knownPeople = byOrigin.reduce((sum, origin) => sum + origin.count, 0);
+    const unknownPeople = Math.max(0, ctx.participants - knownPeople);
+    const fallbackAverage =
+      knownPeople > 0
+        ? knownGroupTotal / knownPeople
+        : fallbackTransport(destination.distance_from_paris_km);
+    const unknownPricePerPerson = Math.round(fallbackAverage);
+    const groupTotal = knownGroupTotal + unknownPricePerPerson * unknownPeople;
+    const people = knownPeople + unknownPeople;
+    const quotedOrigins =
+      unknownPeople > 0
+        ? [
+            ...byOrigin,
+            {
+              city: "Départ à confirmer",
+              count: unknownPeople,
+              pricePerPerson: unknownPricePerPerson,
+            },
+          ]
+        : byOrigin;
+
     if (people > 0) {
       transportByDestinationId[destination.id] = groupTotal / people;
       transportGroupByDestinationId[destination.id] = groupTotal;
-      transportOriginsByDestinationId[destination.id] = byOrigin.map((o) => ({
+      transportOriginsByDestinationId[destination.id] = quotedOrigins.map((o) => ({
         city: o.city,
         count: o.count,
         pricePerPerson: o.pricePerPerson,
