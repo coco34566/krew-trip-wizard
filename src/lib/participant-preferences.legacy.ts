@@ -50,6 +50,10 @@ export const participantPreferencesSchema = z.object({
   weatherPreference: z.number().int().min(0).max(2).default(1),
 });
 
+export function canEditParticipantQuestionnaire(destinationSelected: boolean): boolean {
+  return !destinationSelected;
+}
+
 export function questionnaireCompletionResult(input: {
   isUpdate: boolean;
   answered: number;
@@ -136,12 +140,22 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
       isSecretStar = true;
     }
 
-    const prefs = await supabase
-      .from("trip_participant_preferences")
-      .select("*")
-      .eq("trip_id", data.tripId)
-      .eq("user_id", userId)
-      .maybeSingle();
+    const [prefs, selectedDestination] = await Promise.all([
+      supabase
+        .from("trip_participant_preferences")
+        .select("*")
+        .eq("trip_id", data.tripId)
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("recommendations")
+        .select("id")
+        .eq("trip_id", data.tripId)
+        .eq("is_selected", true)
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (selectedDestination.error) throw selectedDestination.error;
     if (prefs.error) {
       const msg = String(prefs.error.message || prefs.error);
       if (msg.includes("schema cache") || msg.includes("Could not find") || msg.includes("does not exist")) {
@@ -173,6 +187,7 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
       isStar,
       starMode,
       starEventPreferences,
+      destinationSelected: Boolean(selectedDestination.data),
     };
   });
 
@@ -290,9 +305,22 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
 
     // Authorization: ensure the user is trip admin (owner/co-organizer) or listed participant (by user_id or email)
-    const tripRes = await supabase.from("trips").select("id, owner_id, co_organizer_id, group_logistics, star_user_id").eq("id", data.tripId).maybeSingle();
+    const [tripRes, selectedDestination] = await Promise.all([
+      supabase.from("trips").select("id, owner_id, co_organizer_id, group_logistics, star_user_id").eq("id", data.tripId).maybeSingle(),
+      supabase
+        .from("recommendations")
+        .select("id")
+        .eq("trip_id", data.tripId)
+        .eq("is_selected", true)
+        .limit(1)
+        .maybeSingle(),
+    ]);
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
+    if (selectedDestination.error) throw selectedDestination.error;
+    if (!canEditParticipantQuestionnaire(Boolean(selectedDestination.data))) {
+      throw new Error("QUESTIONNAIRE_LOCKED_DESTINATION_SELECTED");
+    }
     const isTripAdmin =
       tripRes.data.owner_id === userId ||
       tripRes.data.co_organizer_id === userId;
@@ -489,6 +517,15 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
         .upsert(starPayload, { onConflict: "trip_id" });
       if (starUpsert.error) throw starUpsert.error;
     }
+
+    // Toute réponse nouvelle ou modifiée avant le choix final rend les propositions
+    // existantes obsolètes : elles devront être régénérées avec les préférences à jour.
+    const staleRecommendations = await supabaseAdmin
+      .from("recommendations")
+      .delete()
+      .eq("trip_id", data.tripId)
+      .eq("is_selected", false);
+    if (staleRecommendations.error) throw staleRecommendations.error;
 
     const [participants, preferences] = await Promise.all([
       supabase.from("trip_participants").select("id, status").eq("trip_id", data.tripId),

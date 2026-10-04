@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { questionnaireCompletionResult } from "../participant-preferences.functions";
+import { canEditParticipantQuestionnaire, questionnaireCompletionResult } from "../participant-preferences.functions";
 import { replaceRecommendationsSafely, requiresLegacyProfileValidation, selectTopDestinationProposals } from "../krew/trip-service";
 import { computeOriginTransportFairnessPenalty, selectDiverseTop, type Proposal } from "../krew/engine";
 
@@ -7,6 +7,13 @@ const proposal = (name: string, score: number, country = "France") => ({
   destination: { id: name, name, country }, score,
   budget: { totalPerPerson: 500 },
 }) as unknown as Proposal;
+
+describe("participant questionnaire editing", () => {
+  it("stays editable until a destination is selected", () => {
+    expect(canEditParticipantQuestionnaire(false)).toBe(true);
+    expect(canEditParticipantQuestionnaire(true)).toBe(false);
+  });
+});
 
 describe("pipeline finalization", () => {
   it("does not auto-generate destinations after questionnaire completion", () => {
